@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Fábrica de Ração — Granja São José</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #181c27;
+    --bg3: #1e2333;
+    --border: #2a3045;
+    --accent: #f5a623;
+    --accent2: #e8891a;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --blue: #3498db;
+    --text: #e8eaf0;
+    --text2: #8b92a8;
+    --white: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--accent);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .btn-admin {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+  }
+  .btn-admin:active { opacity: 0.7; }
+
+  /* ===== NAV TABS ===== */
+  .nav-tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .nav-tab {
+    flex: 1;
+    min-width: 100px;
+    padding: 14px 10px;
+    text-align: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(245,166,35,0.05);
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  .content { padding: 16px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ===== RAÇÃO TYPE GRID ===== */
+  .racao-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .racao-btn {
+    background: var(--bg3);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .racao-btn:active { transform: scale(0.97); }
+  .racao-btn.selected {
+    border-color: var(--accent);
+    background: rgba(245,166,35,0.1);
+  }
+  .racao-btn-icon { font-size: 28px; margin-bottom: 8px; }
+  .racao-btn-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .racao-btn-premix {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  /* ===== FORMULA TABLE ===== */
+  .formula-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .formula-table th {
+    background: var(--bg3);
+    padding: 10px 12px;
+    text-align: left;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+  }
+  .formula-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .formula-table tr:last-child td { border-bottom: none; }
+  .formula-table .qty {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    text-align: right;
+  }
+  .stock-ok { color: var(--green); font-size: 12px; }
+  .stock-low { color: var(--accent); font-size: 12px; }
+  .stock-zero { color: var(--red); font-size: 12px; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 12px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--text2);
+  }
+  .btn-sm {
+    display: inline-block;
+    width: auto;
+    padding: 8px 16px;
+    font-size: 13px;
+    margin-top: 0;
+  }
+  .btn-blue { background: var(--blue); color: #fff; }
+
+  /* ===== ESTOQUE ===== */
+  .estoque-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .estoque-item:last-child { border-bottom: none; }
+  .estoque-nome {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .estoque-unidade {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .estoque-saldo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: right;
+  }
+  .saldo-ok { color: var(--green); }
+  .saldo-baixo { color: var(--accent); }
+  .saldo-zero { color: var(--red); }
+
+  /* ===== BOTÕES +/- ESTOQUE ===== */
+  .estoque-controles {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    justify-content: flex-end;
+  }
+  .btn-pm {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-pm:active { background: var(--accent); color: #000; }
+  .btn-pm.plus { border-color: var(--green); color: var(--green); }
+  .btn-pm.plus:active { background: var(--green); color: #000; }
+  .btn-pm.minus { border-color: var(--red); color: var(--red); }
+  .btn-pm.minus:active { background: var(--red); color: #fff; }
+  .pm-step-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-align: center;
+    min-width: 30px;
+  }
+
+  /* ===== HISTORICO ===== */
+  .historico-item {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--accent);
+  }
+  .historico-tipo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .historico-meta {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+
+  /* ===== INPUTS ===== */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+    margin-bottom: 6px;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 15px;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  select.form-input { cursor: pointer; }
+
+  /* ===== PREMIX SELECTOR ===== */
+  .premix-selector {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .premix-opt {
+    flex: 1;
+    padding: 12px;
+    background: var(--bg3);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text2);
+  }
+  .premix-opt.selected {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(245,166,35,0.1);
+  }
+
+  /* ===== CONFIRMAÇÃO ===== */
+  .confirm-box {
+    background: rgba(245,166,35,0.08);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .confirm-box-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .confirm-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .confirm-row:last-child { border-bottom: none; }
+
+  /* ===== BADGE ===== */
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-green { background: rgba(46,204,113,0.15); color: var(--green); }
+  .badge-red { background: rgba(231,76,60,0.15); color: var(--red); }
+  .badge-orange { background: rgba(245,166,35,0.15); color: var(--accent); }
+
+  /* ===== ALERTA ===== */
+  .alerta {
+    background: rgba(231,76,60,0.1);
+    border: 1px solid rgba(231,76,60,0.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #ff6b6b;
+  }
+  .alerta-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    text-transform: uppercase;
+  }
+
+  /* ===== SEPARADOR ===== */
+  .sep {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* ===== EDIT TABLE (ADMIN) ===== */
+  .edit-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .edit-row-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .edit-input-sm {
+    width: 90px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    text-align: right;
+  }
+  .edit-unit {
+    font-size: 12px;
+    color: var(--text2);
+    width: 40px;
+  }
+
+  /* ===== SCROLL ===== */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--green);
+    color: #000;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 500;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--red); color: #fff; }
+
+  .text-center { text-align: center; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-0 { margin-bottom: 0; }
+
+  /* PIN input */
+  .pin-display {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 16px 0;
+  }
+  .pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: background 0.2s;
+  }
+  .pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+  .pin-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+  .pin-key {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 0.15s;
+  }
+  .pin-key:active { background: var(--accent); color: #000; }
+  .pin-key.del { color: var(--red); }
+  .pin-key.zero { grid-column: 2; }
+
+  .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text2);
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="header-title">🌾 Fábrica de Ração</div>
+    <div class="header-sub">Granja São José</div>
+  </div>
+  <button class="btn-admin" onclick="abrirMenuAcesso()">⚙ Acesso</button>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="showScreen('producao')">Produção</div>
+  <div class="nav-tab" onclick="showScreen('estoque')">Estoque</div>
+  <div class="nav-tab" onclick="showScreen('historico')">Histórico</div>
+</div>
+
+<!-- ========== TELA: PRODUÇÃO ========== -->
+<div id="screen-producao" class="screen active content">
+
+  <div class="card">
+    <div class="card-title">Selecione o Tipo de Ração</div>
+    <div class="racao-grid" id="racao-grid"></div>
+  </div>
+
+  <!-- PREMIX SELECTOR (postura only) -->
+  <div id="premix-selector-card" class="card" style="display:none">
+    <div class="card-title">Selecione o Premix</div>
+    <div class="premix-selector">
+      <div class="premix-opt selected" id="opt-m10" onclick="selecionarPremix('M1.0')">M1.0</div>
+      <div class="premix-opt" id="opt-m12" onclick="selecionarPremix('M1.2')">M1.2</div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-top:8px;">M1.2 aumenta tamanho do ovo — usar apenas em lotes bem desenvolvidos</div>
+  </div>
+
+  <!-- ALERTAS DE ESTOQUE -->
+  <div id="alertas-container"></div>
+
+  <!-- FÓRMULA -->
+  <div id="formula-card" class="card" style="display:none">
+    <div class="card-title" id="formula-titulo">Fórmula</div>
+    <table class="formula-table">
+      <thead>
+        <tr>
+          <th>Insumo</th>
+          <th style="text-align:right">Quantidade</th>
+          <th style="text-align:right">Estoque</th>
+        </tr>
+      </thead>
+      <tbody id="formula-tbody"></tbody>
+    </table>
+
+    <div style="margin-top:14px;padding:12px;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.25);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text2)">Rendimento do lote</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--accent);margin-top:2px">500 kg de ração</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text2)">Equivalente a</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--green);margin-top:2px">10 sacos</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="abrirConfirmacao()">✔ Confirmar Produção</button>
+  </div>
+
+</div>
+
+<!-- ========== TELA: ESTOQUE ========== -->
+<div id="screen-estoque" class="screen content">
+
+  <div id="estoque-list-card" class="card">
+    <div class="card-title">Saldo Atual do Estoque</div>
+    <div id="estoque-lista"></div>
+  </div>
+
+  <div id="btn-abastecer-wrap">
+    <!-- botão aparece se gerente logado -->
+  </div>
+
+</div>
+
+<!-- ========== TELA: HISTÓRICO ========== -->
+<div id="screen-historico" class="screen content">
+  <div class="card">
+    <div class="card-title">Produções Registradas</div>
+    <div id="historico-lista"></div>
+  </div>
+</div>
+
+<!-- ========== MODAL: CONFIRMAÇÃO PRODUÇÃO ========== -->
+<div class="modal-overlay" id="modal-confirmar">
+  <div class="modal">
+    <div class="modal-title">⚠ Confirmar Produção</div>
+    <p style="font-size:14px;color:var(--text2);margin-bottom:16px">Os itens abaixo serão descontados do estoque. Esta ação não pode ser desfeita.</p>
+    <div class="confirm-box">
+      <div class="confirm-box-title" id="confirm-titulo"></div>
+      <div id="confirm-itens"></div>
+    </div>
+    <button class="btn btn-success" onclick="confirmarProducao()">✔ Confirmar e Descontar Estoque</button>
+    <button class="btn btn-outline" onclick="fecharModal('modal-confirmar')">Cancelar</button>
+  </div>
+</div>
+
+<!-- ========== MODAL: ABASTECER ESTOQUE ========== -->
+<div class="modal-overlay" id="modal-abastecer">
+  <div class="modal">
+    <div class="modal-title">📦 Entrada de Insumos</div>
+    <div class="form-group">
+      <label class="form-label">Insumo</label>
+      <select class="form-input" id="ab-insumo" onchange="atualizarUnidadeAbastecimento()">
+        <option value="">Selecione...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="ab-label-qtd">Quantidade</label>
+      <input type="number" class="form-input" id="ab-qtd" placeholder="0" min="0" step="0.01">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observação (opcional)</label>
+      <input type="text" class="form-input" id="ab-obs" placeholder="Fornecedor, NF...">
+    </div>
+    <button class="btn btn-blue" onclick="registrarEntrada()">+ Registrar Entrada</button>
+    <button class="btn btn-outline mt-8" onclick="fecharModal('modal-abastecer')">Cancelar</button>
+  </div>
+</div>
+
+<!-- ========== MODAL: MENU ACESSO ========== -->
+<div class="modal-overlay" id="modal-acesso">
+  <div class="modal">
+    <div class="modal-title">⚙ Área de Acesso</div>
+    <div id="acesso-conteudo">
+      <button class="btn btn-outline mb-0" style="margin-bottom:10px" onclick="iniciarPin('gerente')">
+        👤 Acesso Gerente<br><span style="font-size:12px;font-weight:400;text-transform:none">Abastecer estoque</span>
+      </button>
+      <button class="btn btn-outline mb-0" style="margin-bottom:10px" onclick="iniciarPin('admin')">
+        🔐 Acesso Admin<br><span style="font-size:12px;font-weight:400;text-transform:none">Editar fórmulas e configurações</span>
+      </button>
+      <div id="sessao-ativa-info" style="display:none;margin-top:10px;padding:10px;background:rgba(46,204,113,0.1);border-radius:8px;font-size:13px;color:var(--green)"></div>
+      <button class="btn btn-outline mt-16" onclick="fecharModal('modal-acesso')">Fechar</button>
+      <button id="btn-logout" class="btn btn-danger mt-8" style="display:none" onclick="logout()">Encerrar Sessão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL: PIN ========== -->
+<div class="modal-overlay" id="modal-pin">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-title text-center" id="pin-titulo">Digite o PIN</div>
+    <div class="pin-display" id="pin-display">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div id="pin-erro" style="text-align:center;color:var(--red);font-size:13px;min-height:18px;margin-bottom:10px"></div>
+    <div class="pin-pad">
+      <div class="pin-key" onclick="pinDigit('1')">1</div>
+      <div class="pin-key" onclick="pinDigit('2')">2</div>
+      <div class="pin-key" onclick="pinDigit('3')">3</div>
+      <div class="pin-key" onclick="pinDigit('4')">4</div>
+      <div class="pin-key" onclick="pinDigit('5')">5</div>
+      <div class="pin-key" onclick="pinDigit('6')">6</div>
+      <div class="pin-key" onclick="pinDigit('7')">7</div>
+      <div class="pin-key" onclick="pinDigit('8')">8</div>
+      <div class="pin-key" onclick="pinDigit('9')">9</div>
+      <div class="pin-key del" onclick="pinDel()">⌫</div>
+      <div class="pin-key zero" onclick="pinDigit('0')">0</div>
+      <div class="pin-key" onclick="fecharModal('modal-pin')" style="color:var(--text2)">✕</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL: ADMIN - EDITAR FÓRMULAS ========== -->
+<div class="modal-overlay" id="modal-admin">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title">🔐 Painel Admin</div>
+
+    <div class="section-label">Editar Fórmulas</div>
+    <div class="form-group">
+      <select class="form-input" id="admin-racao-sel" onchange="carregarFormAdmin()">
+        <option value="">Selecione a ração...</option>
+      </select>
+    </div>
+    <div id="admin-formula-edit" style="display:none">
+      <div id="admin-edit-rows"></div>
+      <button class="btn btn-primary mt-16" onclick="salvarFormAdmin()">💾 Salvar Fórmula</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="section-label">Estoque Mínimo por Insumo</div>
+    <div id="admin-minimos"></div>
+    <button class="btn btn-blue mt-16" onclick="salvarMinimos()">💾 Salvar Mínimos</button>
+
+    <div class="sep"></div>
+    <button class="btn btn-outline" onclick="fecharModal('modal-admin')">Fechar</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO DO GOOGLE SHEETS
+// ============================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxm4xbg2KSPopTMBpQQz1cz89E3XETLIhWLAIXW-PKKTAqhGRjZVcbI_k-rGTx5FtxF1A/exec';
+
+// ============================================================
+// SENHAS (altere aqui ou via admin)
+// ============================================================
+const PINS = {
+  gerente: '1234',  // ← ALTERE
+  admin: '9876'     // ← ALTERE
+};
+
+// ============================================================
+// INSUMOS
+// ============================================================
+const INSUMOS = [
+  { id: 'milho',        nome: 'Milho',                  unidade: 'sacas',   peso_unidade: 50,   minimo: 10 },
+  { id: 'soja',         nome: 'Farelo de Soja',          unidade: 'sacas',   peso_unidade: 40,   minimo: 5  },
+  { id: 'carne',        nome: 'Farinha de Carne',        unidade: 'sacas',   peso_unidade: 50,   minimo: 3  },
+  { id: 'trigo',        nome: 'Farelo de Trigo',         unidade: 'sacas',   peso_unidade: 30,   minimo: 3  },
+  { id: 'calc_grosso',  nome: 'Calcário Grosso',         unidade: 'sacas',   peso_unidade: 40,   minimo: 2  },
+  { id: 'calc_fino',    nome: 'Calcário Fino',           unidade: 'sacas',   peso_unidade: 40,   minimo: 2  },
+  { id: 'bicarb',       nome: 'Bicarbonato de Sódio',   unidade: 'sacos',   peso_unidade: 20,   minimo: 1  },
+  { id: 'sal',          nome: 'Sal',                     unidade: 'fardos',  peso_unidade: 30,   minimo: 1  },
+  { id: 'adsorvente',   nome: 'Adsorvente',              unidade: 'sacos',   peso_unidade: 25,   minimo: 1  },
+  { id: 'premix_ini',   nome: 'Premix Inicial',          unidade: 'sacos',   peso_unidade: 20,   minimo: 1  },
+  { id: 'premix_fra',   nome: 'Premix Frangas',          unidade: 'sacos',   peso_unidade: 20,   minimo: 1  },
+
+  { id: 'premix_m10',   nome: 'Premix Postura M1.0',    unidade: 'sacos',   peso_unidade: 20,   minimo: 1  },
+  { id: 'premix_m12',   nome: 'Premix Postura M1.2',    unidade: 'sacos',   peso_unidade: 20,   minimo: 1  },
+  { id: 'colina',       nome: 'Cloreto de Colina 60%',  unidade: 'gramas',  peso_unidade: 1,    minimo: 500  },
+  { id: 'vitamitract',  nome: 'Vitamitract ADE',         unidade: 'pacotes', peso_unidade: 2000, minimo: 2  },
+  { id: 'poliforte',    nome: 'Poliforte',               unidade: 'gramas',  peso_unidade: 1,    minimo: 500 },
+  { id: 'oleo',         nome: 'Óleo',                    unidade: 'ml',      peso_unidade: 1,    minimo: 500 },
+];
+
+// ============================================================
+// FÓRMULAS (quantidade em KG por lote de 500kg)
+// ============================================================
+// Para premix_postura: usa premix_m10 ou premix_m12 conforme seleção
+const FORMULAS_DEFAULT = {
+  pre_inicial: {
+    nome: 'Pré-Inicial',
+    icon: '🐣',
+    ingredientes: [
+      { id: 'milho',       kg: 300,   display: '6 sacas (300 kg)' },
+      { id: 'soja',        kg: 120,   display: '3 sacas (120 kg)' },
+      { id: 'carne',       kg: 20,    display: '20 kg' },
+      { id: 'calc_fino',   kg: 2.25,  display: '2,25 kg' },
+      { id: 'bicarb',      kg: 0.5,   display: '500 g' },
+      { id: 'sal',         kg: 1.5,   display: '1,5 kg' },
+      { id: 'adsorvente',  kg: 2,     display: '2 kg' },
+      { id: 'premix_ini',  kg: 2,     display: '2 kg' },
+      { id: 'oleo',        kg: 150,   display: '150 ml' },
+      { id: 'poliforte',   kg: 200,   display: '2 pacotes (200 g)' },
+    ]
+  },
+  inicial: {
+    nome: 'Inicial',
+    icon: '🐤',
+    ingredientes: [
+      { id: 'milho',       kg: 312,   display: '6 sacas + 12 kg (312 kg)' },
+      { id: 'soja',        kg: 150,   display: '3 sacas + 30 kg (150 kg)' },
+      { id: 'carne',       kg: 30,    display: '30 kg' },
+      { id: 'calc_fino',   kg: 2,     display: '2 kg' },
+      { id: 'sal',         kg: 1.5,   display: '1,5 kg' },
+      { id: 'adsorvente',  kg: 2,     display: '2 kg' },
+      { id: 'premix_ini',  kg: 2.5,   display: '2,5 kg' },
+      { id: 'oleo',        kg: 150,   display: '150 ml' },
+    ]
+  },
+  crescimento: {
+    nome: 'Crescimento N2',
+    icon: '🐓',
+    ingredientes: [
+      { id: 'milho',       kg: 315,   display: '6 sacas + 15 kg (315 kg)' },
+      { id: 'soja',        kg: 91,    display: '2 sacas + 11 kg (91 kg)' },
+      { id: 'carne',       kg: 27,    display: '27 kg' },
+      { id: 'trigo',       kg: 50,    display: '50 kg' },
+      { id: 'calc_fino',   kg: 5,     display: '5 kg' },
+      { id: 'sal',         kg: 1.6,   display: '1,6 kg' },
+      { id: 'adsorvente',  kg: 2,     display: '2 kg' },
+      { id: 'premix_fra',  kg: 2,     display: '2 kg' },
+      { id: 'poliforte',   kg: 200,   display: '2 pacotes (200 g)' },
+      { id: 'vitamitract', kg: 0.5,   display: '500 g' },
+      { id: 'colina',      kg: 250,   display: '250 g' },
+    ]
+  },
+  pre_postura: {
+    nome: 'Pré-Postura',
+    icon: '🥚',
+    ingredientes: [
+      { id: 'milho',       kg: 316,   display: '6 sacas + 16 kg (316 kg)' },
+      { id: 'soja',        kg: 101,   display: '2 sacas + 21 kg (101 kg)' },
+      { id: 'carne',       kg: 18,    display: '18 kg' },
+      { id: 'trigo',       kg: 42,    display: '42 kg' },
+      { id: 'calc_fino',   kg: 14,    display: '14 kg' },
+      { id: 'calc_grosso', kg: 15,    display: '15 kg' },
+      { id: 'sal',         kg: 1.6,   display: '1,6 kg' },
+      { id: 'adsorvente',  kg: 2,     display: '2 kg' },
+      { id: 'premix_m10',  kg: 2,     display: '2 kg — M1.0' },
+    ]
+  },
+  postura: {
+    nome: 'Postura Fase 1',
+    icon: '🏭',
+    premix_variavel: true,
+    ingredientes: [
+      { id: 'milho',       kg: 316,   display: '6 sacas + 16 kg (316 kg)' },
+      { id: 'soja',        kg: 108,   display: '2 sacas + 28 kg (108 kg)' },
+      { id: 'carne',       kg: 25,    display: '25 kg' },
+      { id: 'calc_grosso', kg: 30,    display: '30 kg' },
+      { id: 'calc_fino',   kg: 20,    display: '20 kg' },
+      { id: 'bicarb',      kg: 1,     display: '1 kg' },
+      { id: 'sal',         kg: 1.5,   display: '1,5 kg' },
+      { id: 'adsorvente',  kg: 2,     display: '2 kg' },
+      { id: 'premix_m10',  kg: 2,     display: '2 kg (M1.0)' },
+      { id: 'colina',      kg: 250,   display: '250 g' },
+      { id: 'vitamitract', kg: 0.5,   display: '500 g' },
+    ]
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let formulas = JSON.parse(localStorage.getItem('gsj_formulas') || 'null') || JSON.parse(JSON.stringify(FORMULAS_DEFAULT));
+let estoque  = JSON.parse(localStorage.getItem('gsj_estoque') || '{}');
+let minimos  = JSON.parse(localStorage.getItem('gsj_minimos') || '{}');
+let historico = JSON.parse(localStorage.getItem('gsj_historico') || '[]');
+let sessao   = null; // 'gerente' | 'admin'
+let racaoSelecionada = null;
+let premixSelecionado = 'M1.0';
+let pinBuffer = '';
+let pinAlvo = null;
+
+// Inicializar estoque zerado para insumos não cadastrados
+INSUMOS.forEach(i => {
+  if (estoque[i.id] === undefined) estoque[i.id] = 0;
+  if (minimos[i.id] === undefined) minimos[i.id] = i.minimo;
+});
+
+// ============================================================
+// NAVEGAÇÃO
+// ============================================================
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (name === 'estoque') renderEstoque();
+  if (name === 'historico') renderHistorico();
+}
+
+// ============================================================
+// RENDERIZAR GRADE DE RAÇÕES
+// ============================================================
+function renderRacaoGrid() {
+  const grid = document.getElementById('racao-grid');
+  grid.innerHTML = '';
+  Object.entries(formulas).forEach(([key, r]) => {
+    const div = document.createElement('div');
+    div.className = 'racao-btn' + (racaoSelecionada === key ? ' selected' : '');
+    div.onclick = () => selecionarRacao(key);
+    div.innerHTML = `<div class="racao-btn-icon">${r.icon}</div>
+      <div class="racao-btn-name">${r.nome}</div>`;
+    grid.appendChild(div);
+  });
+}
+
+// ============================================================
+// SELECIONAR RAÇÃO
+// ============================================================
+function selecionarRacao(key) {
+  racaoSelecionada = key;
+  renderRacaoGrid();
+
+  const r = formulas[key];
+  const isPosatura = r.premix_variavel;
+
+  document.getElementById('premix-selector-card').style.display = isPosatura ? 'block' : 'none';
+  document.getElementById('formula-card').style.display = 'block';
+  document.getElementById('formula-titulo').textContent = r.icon + ' ' + r.nome;
+
+  renderFormula(key);
+  renderAlertas(key);
+}
+
+// ============================================================
+// RENDERIZAR FÓRMULA
+// ============================================================
+function renderFormula(key) {
+  const r = formulas[key];
+  const tbody = document.getElementById('formula-tbody');
+  tbody.innerHTML = '';
+
+  let ingredientes = r.ingredientes.map(i => ({...i}));
+
+  // Substituir premix na postura conforme seleção
+  if (r.premix_variavel) {
+    ingredientes = ingredientes.map(i => {
+      if (i.id === 'premix_m10' && premixSelecionado === 'M1.2') {
+        return { ...i, id: 'premix_m12', display: '2 kg (M1.2)' };
+      }
+      return i;
+    });
+  }
+
+  ingredientes.forEach(ing => {
+    const insumo = INSUMOS.find(x => x.id === ing.id);
+    const saldo_kg = (estoque[ing.id] || 0) * (insumo ? insumo.peso_unidade : 1);
+    const suficiente = saldo_kg >= ing.kg;
+    const saldo_unid = estoque[ing.id] || 0;
+    const unidade = insumo ? insumo.unidade : '';
+
+    let stockClass = suficiente ? 'stock-ok' : 'stock-zero';
+    let stockIcon = suficiente ? '✔' : '✗';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        ${insumo ? insumo.nome : ing.id}
+        <div class="${stockClass}" style="font-size:11px">${stockIcon} ${saldo_unid.toFixed(2)} ${unidade}</div>
+      </td>
+      <td class="qty">${ing.display}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// ALERTAS DE ESTOQUE
+// ============================================================
+function renderAlertas(key) {
+  const container = document.getElementById('alertas-container');
+  container.innerHTML = '';
+
+  const r = formulas[key];
+  let ingredientes = r.ingredientes.map(i => ({...i}));
+
+  if (r.premix_variavel && premixSelecionado === 'M1.2') {
+    ingredientes = ingredientes.map(i => i.id === 'premix_m10' ? {...i, id: 'premix_m12'} : i);
+  }
+
+  const insuficientes = ingredientes.filter(ing => {
+    const insumo = INSUMOS.find(x => x.id === ing.id);
+    const saldo_kg = (estoque[ing.id] || 0) * (insumo ? insumo.peso_unidade : 1);
+    return saldo_kg < ing.kg;
+  });
+
+  if (insuficientes.length > 0) {
+    const div = document.createElement('div');
+    div.className = 'alerta';
+    div.innerHTML = `<div class="alerta-title">⚠ Estoque Insuficiente</div>` +
+      insuficientes.map(ing => {
+        const insumo = INSUMOS.find(x => x.id === ing.id);
+        return `<div>${insumo ? insumo.nome : ing.id}: necessário ${ing.kg} kg, disponível ${((estoque[ing.id]||0)*(insumo?insumo.peso_unidade:1)).toFixed(2)} kg</div>`;
+      }).join('');
+    container.appendChild(div);
+  }
+}
+
+// ============================================================
+// PREMIX POSTURA
+// ============================================================
+function selecionarPremix(tipo) {
+  premixSelecionado = tipo;
+  document.getElementById('opt-m10').classList.toggle('selected', tipo === 'M1.0');
+  document.getElementById('opt-m12').classList.toggle('selected', tipo === 'M1.2');
+  if (racaoSelecionada) {
+    renderFormula(racaoSelecionada);
+    renderAlertas(racaoSelecionada);
+  }
+}
+
+// ============================================================
+// CONFIRMAÇÃO DE PRODUÇÃO
+// ============================================================
+function abrirConfirmacao() {
+  if (!racaoSelecionada) return;
+  const r = formulas[racaoSelecionada];
+
+  let ingredientes = r.ingredientes.map(i => ({...i}));
+  if (r.premix_variavel && premixSelecionado === 'M1.2') {
+    ingredientes = ingredientes.map(i => i.id === 'premix_m10' ? {...i, id: 'premix_m12', display: '2 kg (M1.2)'} : i);
+  }
+
+  document.getElementById('confirm-titulo').textContent = r.icon + ' ' + r.nome;
+
+  const itens = document.getElementById('confirm-itens');
+  itens.innerHTML = ingredientes.map(ing => {
+    const insumo = INSUMOS.find(x => x.id === ing.id);
+    const saldo_kg = (estoque[ing.id] || 0) * (insumo ? insumo.peso_unidade : 1);
+    const ok = saldo_kg >= ing.kg;
+    return `<div class="confirm-row">
+      <span>${insumo ? insumo.nome : ing.id}</span>
+      <span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ing.display}</span>
+    </div>`;
+  }).join('');
+
+  abrirModal('modal-confirmar');
+}
+
+function confirmarProducao() {
+  const r = formulas[racaoSelecionada];
+  let ingredientes = r.ingredientes.map(i => ({...i}));
+  if (r.premix_variavel && premixSelecionado === 'M1.2') {
+    ingredientes = ingredientes.map(i => i.id === 'premix_m10' ? {...i, id: 'premix_m12'} : i);
+  }
+
+  // Descontar estoque
+  ingredientes.forEach(ing => {
+    const insumo = INSUMOS.find(x => x.id === ing.id);
+    if (!insumo) return;
+    const unidades_usadas = ing.kg / insumo.peso_unidade;
+    estoque[ing.id] = Math.max(0, (estoque[ing.id] || 0) - unidades_usadas);
+  });
+
+  // Registrar histórico
+  const registro = {
+    id: Date.now(),
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+    racao: r.nome,
+    premix: r.premix_variavel ? premixSelecionado : null,
+    ingredientes: ingredientes
+  };
+  historico.unshift(registro);
+  if (historico.length > 200) historico = historico.slice(0, 200);
+
+  salvarLocal();
+  sincronizarSheets(registro);
+
+  fecharModal('modal-confirmar');
+  racaoSelecionada = null;
+  renderRacaoGrid();
+  document.getElementById('formula-card').style.display = 'none';
+  document.getElementById('premix-selector-card').style.display = 'none';
+  document.getElementById('alertas-container').innerHTML = '';
+
+  showToast('✔ Produção registrada! Estoque atualizado.');
+}
+
+// ============================================================
+// ESTOQUE
+// ============================================================
+function formatSaldo(val) {
+  return val % 1 === 0 ? val : val.toFixed(2);
+}
+
+function ajustarEstoque(id, delta) {
+  if (sessao !== 'gerente' && sessao !== 'admin') return;
+  const insumo = INSUMOS.find(i => i.id === id);
+  const novoSaldo = Math.max(0, (estoque[id] || 0) + delta);
+  estoque[id] = novoSaldo;
+
+  // Atualizar display sem re-renderizar tudo
+  const saldoEl = document.getElementById('saldo-' + id);
+  const unidEl  = document.getElementById('unid-' + id);
+  const min = minimos[id] || insumo.minimo;
+  let saldoClass = 'saldo-ok';
+  if (novoSaldo === 0) saldoClass = 'saldo-zero';
+  else if (novoSaldo <= min) saldoClass = 'saldo-baixo';
+  saldoEl.className = 'estoque-saldo ' + saldoClass;
+  saldoEl.textContent = formatSaldo(novoSaldo);
+
+  // Registrar no histórico
+  const acao = delta > 0 ? 'entrada' : 'saida_manual';
+  const registro = {
+    id: Date.now(),
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+    tipo: acao,
+    insumo: insumo.nome,
+    quantidade: Math.abs(delta),
+    unidade: insumo.unidade,
+    obs: 'Ajuste manual (' + (delta > 0 ? '+' : '-') + Math.abs(delta) + ')'
+  };
+  historico.unshift(registro);
+  salvarLocal();
+  sincronizarSheets(registro);
+  showToast((delta > 0 ? '+' : '-') + Math.abs(delta) + ' ' + insumo.unidade + ' — ' + insumo.nome);
+}
+
+function renderEstoque() {
+  const lista = document.getElementById('estoque-lista');
+  lista.innerHTML = '';
+  const temAcesso = sessao === 'gerente' || sessao === 'admin';
+
+  INSUMOS.forEach(ins => {
+    const saldo = estoque[ins.id] || 0;
+    const min = minimos[ins.id] || ins.minimo;
+    let saldoClass = 'saldo-ok';
+    if (saldo === 0) saldoClass = 'saldo-zero';
+    else if (saldo <= min) saldoClass = 'saldo-baixo';
+
+    // Passo do botão por unidade
+    const passos = { colina: 100, poliforte: 100, oleo: 100 };
+    const step = passos[ins.id] !== undefined ? passos[ins.id] : 1;
+
+    const controles = temAcesso ? `
+      <div class="estoque-controles">
+        <button class="btn-pm minus" onclick="ajustarEstoque('${ins.id}', -${step})">−</button>
+        <div class="pm-step-label">${step} ${ins.unidade}</div>
+        <button class="btn-pm plus" onclick="ajustarEstoque('${ins.id}', ${step})">+</button>
+      </div>` : '';
+
+    const div = document.createElement('div');
+    div.className = 'estoque-item';
+    div.style.flexWrap = 'wrap';
+    div.innerHTML = `
+      <div style="flex:1;min-width:120px">
+        <div class="estoque-nome">${ins.nome}</div>
+        <div class="estoque-unidade">mín: ${min} ${ins.unidade}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="estoque-saldo ${saldoClass}" id="saldo-${ins.id}">${formatSaldo(saldo)}</div>
+        <div style="font-size:11px;color:var(--text2)" id="unid-${ins.id}">${ins.unidade}</div>
+        ${controles}
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+
+  // Botão modal de entrada detalhada
+  const wrap = document.getElementById('btn-abastecer-wrap');
+  if (temAcesso) {
+    wrap.innerHTML = `<button class="btn btn-blue" onclick="abrirAbastecer()">+ Registrar Entrada Detalhada (com obs.)</button>`;
+  } else {
+    wrap.innerHTML = `<p style="text-align:center;color:var(--text2);font-size:13px;margin-top:8px">Faça login como Gerente ou Admin para editar o estoque</p>`;
+  }
+}
+
+function abrirAbastecer() {
+  const sel = document.getElementById('ab-insumo');
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  INSUMOS.forEach(i => {
+    sel.innerHTML += `<option value="${i.id}">${i.nome}</option>`;
+  });
+  document.getElementById('ab-qtd').value = '';
+  document.getElementById('ab-obs').value = '';
+  atualizarUnidadeAbastecimento();
+  abrirModal('modal-abastecer');
+}
+
+function atualizarUnidadeAbastecimento() {
+  const id = document.getElementById('ab-insumo').value;
+  const insumo = INSUMOS.find(i => i.id === id);
+  const label = document.getElementById('ab-label-qtd');
+  if (insumo) {
+    label.textContent = `Quantidade (${insumo.unidade})`;
+  } else {
+    label.textContent = 'Quantidade';
+  }
+}
+
+function registrarEntrada() {
+  const id = document.getElementById('ab-insumo').value;
+  const qtd = parseFloat(document.getElementById('ab-qtd').value);
+  const obs = document.getElementById('ab-obs').value;
+
+  if (!id || isNaN(qtd) || qtd <= 0) {
+    showToast('Preencha insumo e quantidade', true);
+    return;
+  }
+
+  const insumo = INSUMOS.find(i => i.id === id);
+  estoque[id] = (estoque[id] || 0) + qtd;
+
+  const registro = {
+    id: Date.now(),
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+    tipo: 'entrada',
+    insumo: insumo.nome,
+    quantidade: qtd,
+    unidade: insumo.unidade,
+    obs
+  };
+  historico.unshift(registro);
+  salvarLocal();
+  sincronizarSheets(registro);
+
+  fecharModal('modal-abastecer');
+  renderEstoque();
+  showToast(`+${qtd} ${insumo.unidade} de ${insumo.nome} registrado`);
+}
+
+// ============================================================
+// HISTÓRICO
+// ============================================================
+function renderHistorico() {
+  const lista = document.getElementById('historico-lista');
+  if (historico.length === 0) {
+    lista.innerHTML = '<p style="color:var(--text2);font-size:14px;text-align:center;padding:20px">Nenhum registro ainda.</p>';
+    return;
+  }
+  lista.innerHTML = historico.slice(0, 50).map(r => {
+    if (r.tipo === 'entrada') {
+      return `<div class="historico-item" style="border-left-color:var(--blue)">
+        <div class="historico-tipo" style="color:var(--blue)">📦 Entrada: ${r.insumo}</div>
+        <div class="historico-meta">${r.data} ${r.hora} · +${r.quantidade} ${r.unidade}${r.obs ? ' · ' + r.obs : ''}</div>
+      </div>`;
+    } else {
+      return `<div class="historico-item">
+        <div class="historico-tipo">${r.racao}${r.premix ? ' (' + r.premix + ')' : ''}</div>
+        <div class="historico-meta">${r.data} ${r.hora} · Lote ≈ 500 kg produzido</div>
+      </div>`;
+    }
+  }).join('');
+}
+
+// ============================================================
+// ADMIN - EDITAR FÓRMULAS
+// ============================================================
+function abrirAdmin() {
+  const sel = document.getElementById('admin-racao-sel');
+  sel.innerHTML = '<option value="">Selecione a ração...</option>';
+  Object.entries(formulas).forEach(([key, r]) => {
+    sel.innerHTML += `<option value="${key}">${r.nome}</option>`;
+  });
+  document.getElementById('admin-formula-edit').style.display = 'none';
+  renderMinimoAdmin();
+  abrirModal('modal-admin');
+}
+
+function carregarFormAdmin() {
+  const key = document.getElementById('admin-racao-sel').value;
+  const editDiv = document.getElementById('admin-formula-edit');
+  if (!key) { editDiv.style.display = 'none'; return; }
+  editDiv.style.display = 'block';
+
+  const r = formulas[key];
+  const rows = document.getElementById('admin-edit-rows');
+  rows.innerHTML = r.ingredientes.map((ing, idx) => {
+    const insumo = INSUMOS.find(x => x.id === ing.id);
+    return `<div class="edit-row">
+      <div class="edit-row-name">${insumo ? insumo.nome : ing.id}</div>
+      <input class="edit-input-sm" type="number" step="0.01" value="${ing.kg}" id="adm_ing_${idx}">
+      <div class="edit-unit">kg</div>
+    </div>`;
+  }).join('');
+}
+
+function salvarFormAdmin() {
+  const key = document.getElementById('admin-racao-sel').value;
+  if (!key) return;
+  formulas[key].ingredientes.forEach((ing, idx) => {
+    const val = parseFloat(document.getElementById(`adm_ing_${idx}`).value);
+    if (!isNaN(val)) ing.kg = val;
+  });
+  salvarLocal();
+  showToast('Fórmula salva com sucesso');
+}
+
+function renderMinimoAdmin() {
+  const div = document.getElementById('admin-minimos');
+  div.innerHTML = INSUMOS.map(ins => `
+    <div class="edit-row">
+      <div class="edit-row-name">${ins.nome}</div>
+      <input class="edit-input-sm" type="number" step="0.1" value="${minimos[ins.id] || ins.minimo}" id="min_${ins.id}">
+      <div class="edit-unit">${ins.unidade}</div>
+    </div>
+  `).join('');
+}
+
+function salvarMinimos() {
+  INSUMOS.forEach(ins => {
+    const val = parseFloat(document.getElementById(`min_${ins.id}`).value);
+    if (!isNaN(val)) minimos[ins.id] = val;
+  });
+  salvarLocal();
+  showToast('Mínimos salvos com sucesso');
+}
+
+// ============================================================
+// ACESSO / PIN
+// ============================================================
+function abrirMenuAcesso() {
+  atualizarInfoSessao();
+  abrirModal('modal-acesso');
+}
+
+function atualizarInfoSessao() {
+  const info = document.getElementById('sessao-ativa-info');
+  const btnLogout = document.getElementById('btn-logout');
+  if (sessao) {
+    info.style.display = 'block';
+    info.textContent = `Sessão ativa: ${sessao === 'admin' ? '🔐 Admin' : '👤 Gerente'}`;
+    btnLogout.style.display = 'block';
+  } else {
+    info.style.display = 'none';
+    btnLogout.style.display = 'none';
+  }
+}
+
+function logout() {
+  sessao = null;
+  fecharModal('modal-acesso');
+  renderEstoque();
+  showToast('Sessão encerrada');
+}
+
+function iniciarPin(alvo) {
+  pinAlvo = alvo;
+  pinBuffer = '';
+  document.getElementById('pin-titulo').textContent = alvo === 'admin' ? '🔐 PIN Admin' : '👤 PIN Gerente';
+  document.getElementById('pin-erro').textContent = '';
+  atualizarPinDisplay();
+  fecharModal('modal-acesso');
+  abrirModal('modal-pin');
+}
+
+function pinDigit(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  atualizarPinDisplay();
+  if (pinBuffer.length === 4) setTimeout(verificarPin, 200);
+}
+
+function pinDel() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  atualizarPinDisplay();
+  document.getElementById('pin-erro').textContent = '';
+}
+
+function atualizarPinDisplay() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd' + i);
+    dot.classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function verificarPin() {
+  if (pinBuffer === PINS[pinAlvo]) {
+    sessao = pinAlvo;
+    fecharModal('modal-pin');
+    if (pinAlvo === 'admin') {
+      setTimeout(abrirAdmin, 100);
+    } else {
+      showToast('Acesso Gerente liberado');
+      renderEstoque();
+    }
+  } else {
+    document.getElementById('pin-erro').textContent = 'PIN incorreto';
+    pinBuffer = '';
+    atualizarPinDisplay();
+  }
+}
+
+// ============================================================
+// MODAIS
+// ============================================================
+function abrirModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function fecharModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (error ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ============================================================
+// LOCAL STORAGE
+// ============================================================
+function salvarLocal() {
+  localStorage.setItem('gsj_estoque', JSON.stringify(estoque));
+  localStorage.setItem('gsj_historico', JSON.stringify(historico));
+  localStorage.setItem('gsj_formulas', JSON.stringify(formulas));
+  localStorage.setItem('gsj_minimos', JSON.stringify(minimos));
+}
+
+// ============================================================
+// SINCRONIZAÇÃO GOOGLE SHEETS
+// ============================================================
+function sincronizarSheets(registro) {
+  try {
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origem: 'fabrica', ...registro })
+    });
+  } catch(e) {
+    console.warn('Sync sheets falhou:', e);
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderRacaoGrid();
+renderEstoque();
+</script>
+</body>
+</html>
