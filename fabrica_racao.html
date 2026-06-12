@@ -573,6 +573,83 @@
     color: var(--text2);
     margin-bottom: 10px;
   }
+
+  /* ===== SYNC STATUS ===== */
+  .sync-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+  .sync-status {
+    font-size: 12px;
+    color: var(--text2);
+    flex: 1;
+  }
+  .sync-status.ok { color: var(--green); }
+  .sync-status.erro { color: var(--red); }
+  .sync-status.carregando { color: var(--accent); }
+  .btn-sync {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-sync:active { opacity: 0.8; }
+  .btn-sync:disabled { opacity: 0.5; cursor: default; }
+
+  /* ===== EDIÇÃO DIRETA DE SALDO ===== */
+  .estoque-saldo-tap {
+    cursor: pointer;
+    border-bottom: 2px dashed rgba(245,166,35,0.4);
+    transition: border-color 0.2s;
+  }
+  .estoque-saldo-tap:active { border-color: var(--accent); }
+
+  .modal-saldo-wrap {
+    text-align: center;
+  }
+  .modal-saldo-insumo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .modal-saldo-atual {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+  .saldo-input-grande {
+    width: 100%;
+    background: var(--bg3);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px;
+    color: var(--accent);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .saldo-input-grande:focus { outline: none; }
 </style>
 </head>
 <body>
@@ -647,6 +724,12 @@
 <!-- ========== TELA: ESTOQUE ========== -->
 <div id="screen-estoque" class="screen content">
 
+  <!-- BARRA DE SINCRONIZAÇÃO -->
+  <div class="sync-bar">
+    <div class="sync-status" id="sync-status-txt">⏳ Carregando estoque da nuvem...</div>
+    <button class="btn-sync" id="btn-sync" onclick="syncManual()">☁ Sincronizar</button>
+  </div>
+
   <div id="estoque-list-card" class="card">
     <div class="card-title">Saldo Atual do Estoque</div>
     <div id="estoque-lista"></div>
@@ -656,6 +739,23 @@
     <!-- botão aparece se gerente logado -->
   </div>
 
+</div>
+
+<!-- ========== MODAL: EDITAR SALDO DIRETO ========== -->
+<div class="modal-overlay" id="modal-editar-saldo">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-title text-center">✏ Editar Saldo</div>
+    <div class="modal-saldo-wrap">
+      <div class="modal-saldo-insumo" id="es-nome"></div>
+      <div class="modal-saldo-atual" id="es-atual"></div>
+      <input class="saldo-input-grande" type="number" id="es-valor"
+             inputmode="numeric" pattern="[0-9]*" min="0" step="0.01"
+             placeholder="0">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px" id="es-unidade"></div>
+    </div>
+    <button class="btn btn-primary" onclick="confirmarEdicaoSaldo()">✔ Confirmar</button>
+    <button class="btn btn-outline mt-8" onclick="fecharModal('modal-editar-saldo')">Cancelar</button>
+  </div>
 </div>
 
 <!-- ========== TELA: HISTÓRICO ========== -->
@@ -1163,7 +1263,59 @@ function ajustarEstoque(id, delta) {
   historico.unshift(registro);
   salvarLocal();
   sincronizarSheets(registro);
+  sincronizarEstoqueCompleto();
   showToast((delta > 0 ? '+' : '-') + Math.abs(delta) + ' ' + insumo.unidade + ' — ' + insumo.nome);
+}
+
+// ============================================================
+// EDIÇÃO DIRETA DE SALDO
+// ============================================================
+let esInsumoId = null;
+
+function abrirEdicaoSaldo(id) {
+  if (sessao !== 'gerente' && sessao !== 'admin') return;
+  const insumo = INSUMOS.find(i => i.id === id);
+  if (!insumo) return;
+  esInsumoId = id;
+  const saldoAtual = estoque[id] || 0;
+  document.getElementById('es-nome').textContent = insumo.nome;
+  document.getElementById('es-atual').textContent = 'Saldo atual: ' + formatSaldo(saldoAtual) + ' ' + insumo.unidade;
+  document.getElementById('es-unidade').textContent = 'Unidade: ' + insumo.unidade;
+  const input = document.getElementById('es-valor');
+  input.value = saldoAtual;
+  abrirModal('modal-editar-saldo');
+  setTimeout(() => { input.focus(); input.select(); }, 300);
+}
+
+function confirmarEdicaoSaldo() {
+  if (!esInsumoId) return;
+  const val = parseFloat(document.getElementById('es-valor').value);
+  if (isNaN(val) || val < 0) {
+    showToast('Valor inválido', true);
+    return;
+  }
+  const insumo = INSUMOS.find(i => i.id === esInsumoId);
+  const anterior = estoque[esInsumoId] || 0;
+  estoque[esInsumoId] = val;
+
+  const registro = {
+    id: Date.now(),
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+    tipo: 'edicao_direta',
+    insumo: insumo.nome,
+    quantidade: val,
+    unidade: insumo.unidade,
+    obs: 'Edição direta: ' + formatSaldo(anterior) + ' → ' + formatSaldo(val)
+  };
+  historico.unshift(registro);
+  salvarLocal();
+  sincronizarSheets(registro);
+  sincronizarEstoqueCompleto();
+
+  fecharModal('modal-editar-saldo');
+  renderEstoque();
+  showToast('Saldo de ' + insumo.nome + ' atualizado: ' + formatSaldo(val) + ' ' + insumo.unidade);
 }
 
 function renderEstoque() {
@@ -1178,9 +1330,12 @@ function renderEstoque() {
     if (saldo === 0) saldoClass = 'saldo-zero';
     else if (saldo <= min) saldoClass = 'saldo-baixo';
 
-    // Passo do botão por unidade
     const passos = { colina: 100, poliforte: 100, oleo: 100 };
     const step = passos[ins.id] !== undefined ? passos[ins.id] : 1;
+
+    const tapTitle = temAcesso ? ' title="Toque para editar o valor diretamente"' : '';
+    const tapClass = temAcesso ? ' estoque-saldo-tap' : '';
+    const tapAction = temAcesso ? ` onclick="abrirEdicaoSaldo('${ins.id}')"` : '';
 
     const controles = temAcesso ? `
       <div class="estoque-controles">
@@ -1195,10 +1350,10 @@ function renderEstoque() {
     div.innerHTML = `
       <div style="flex:1;min-width:120px">
         <div class="estoque-nome">${ins.nome}</div>
-        <div class="estoque-unidade">mín: ${min} ${ins.unidade}</div>
+        <div class="estoque-unidade">mín: ${min} ${ins.unidade}${temAcesso ? ' · <span style="color:var(--accent);font-size:10px">toque no nº para editar</span>' : ''}</div>
       </div>
       <div style="text-align:right">
-        <div class="estoque-saldo ${saldoClass}" id="saldo-${ins.id}">${formatSaldo(saldo)}</div>
+        <div class="estoque-saldo ${saldoClass}${tapClass}" id="saldo-${ins.id}"${tapAction}${tapTitle}>${formatSaldo(saldo)}</div>
         <div style="font-size:11px;color:var(--text2)" id="unid-${ins.id}">${ins.unidade}</div>
         ${controles}
       </div>
@@ -1206,7 +1361,6 @@ function renderEstoque() {
     lista.appendChild(div);
   });
 
-  // Botão modal de entrada detalhada
   const wrap = document.getElementById('btn-abastecer-wrap');
   if (temAcesso) {
     wrap.innerHTML = `<button class="btn btn-blue" onclick="abrirAbastecer()">+ Registrar Entrada Detalhada (com obs.)</button>`;
@@ -1464,7 +1618,7 @@ function salvarLocal() {
 }
 
 // ============================================================
-// SINCRONIZAÇÃO GOOGLE SHEETS
+// SINCRONIZAÇÃO GOOGLE SHEETS — ENVIO DE REGISTRO
 // ============================================================
 function sincronizarSheets(registro) {
   try {
@@ -1480,10 +1634,84 @@ function sincronizarSheets(registro) {
 }
 
 // ============================================================
+// SINCRONIZAÇÃO GOOGLE SHEETS — ENVIO DO ESTOQUE COMPLETO
+// ============================================================
+function sincronizarEstoqueCompleto() {
+  try {
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        origem: 'fabrica',
+        tipo: 'snapshot_estoque',
+        data: new Date().toLocaleDateString('pt-BR'),
+        hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+        estoque: estoque
+      })
+    });
+  } catch(e) {
+    console.warn('Snapshot estoque falhou:', e);
+  }
+}
+
+// ============================================================
+// SINCRONIZAÇÃO GOOGLE SHEETS — LEITURA DO ESTOQUE
+// ============================================================
+function setSyncStatus(msg, tipo) {
+  const el = document.getElementById('sync-status-txt');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'sync-status' + (tipo ? ' ' + tipo : '');
+}
+
+async function carregarEstoqueRemoto() {
+  setSyncStatus('⏳ Carregando estoque da nuvem...', 'carregando');
+  const btn = document.getElementById('btn-sync');
+  if (btn) btn.disabled = true;
+
+  try {
+    const url = APPS_SCRIPT_URL + '?action=get_estoque&t=' + Date.now();
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+
+    if (json.status === 'ok' && json.estoque) {
+      // Mescla: Sheets tem prioridade sobre localStorage
+      Object.keys(json.estoque).forEach(k => {
+        if (INSUMOS.find(i => i.id === k)) {
+          estoque[k] = parseFloat(json.estoque[k]) || 0;
+        }
+      });
+      salvarLocal();
+      renderEstoque();
+      const ts = json.atualizado_em ? ' · atualizado em ' + json.atualizado_em : '';
+      setSyncStatus('✔ Estoque sincronizado' + ts, 'ok');
+    } else {
+      // Sheets ainda não tem dados — usa localStorage como fallback
+      setSyncStatus('⚠ Nuvem sem dados — usando estoque local', '');
+    }
+  } catch(e) {
+    setSyncStatus('⚠ Sem conexão — usando estoque local', '');
+    console.warn('carregarEstoqueRemoto:', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function syncManual() {
+  sincronizarEstoqueCompleto();
+  setTimeout(() => carregarEstoqueRemoto(), 1500);
+  setSyncStatus('⏳ Sincronizando...', 'carregando');
+}
+
+// ============================================================
 // INIT
 // ============================================================
 renderRacaoGrid();
 renderEstoque();
+// Carregar estoque remoto ao abrir
+carregarEstoqueRemoto();
 </script>
 </body>
 </html>
