@@ -883,7 +883,7 @@
 // ============================================================
 // CONFIGURAÇÃO DO GOOGLE SHEETS
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxm4xbg2KSPopTMBpQQz1cz89E3XETLIhWLAIXW-PKKTAqhGRjZVcbI_k-rGTx5FtxF1A/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwAdfcl9oRmPhp2KQIiFsFASbRUqDmJfqduFfYE_qubxn-qEhzyMweUH3FHmwQuvqbvqQ/exec';
 
 // ============================================================
 // SENHAS (altere aqui ou via admin)
@@ -1665,19 +1665,32 @@ function setSyncStatus(msg, tipo) {
   el.className = 'sync-status' + (tipo ? ' ' + tipo : '');
 }
 
-async function carregarEstoqueRemoto() {
+function carregarEstoqueRemoto() {
   setSyncStatus('⏳ Carregando estoque da nuvem...', 'carregando');
   const btn = document.getElementById('btn-sync');
   if (btn) btn.disabled = true;
 
-  try {
-    const url = APPS_SCRIPT_URL + '?action=get_estoque&t=' + Date.now();
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
+  // Remove callback anterior se existir
+  const old = document.getElementById('jsonp-estoque');
+  if (old) old.remove();
+  if (window._jsonpEstoqueTimer) clearTimeout(window._jsonpEstoqueTimer);
+
+  // Timeout de 8 segundos
+  window._jsonpEstoqueTimer = setTimeout(() => {
+    setSyncStatus('⚠ Sem conexão — usando estoque local', '');
+    if (btn) btn.disabled = false;
+    const s = document.getElementById('jsonp-estoque');
+    if (s) s.remove();
+  }, 8000);
+
+  // Callback global que o Apps Script vai chamar
+  window._cbEstoque = function(json) {
+    clearTimeout(window._jsonpEstoqueTimer);
+    if (btn) btn.disabled = false;
+    const s = document.getElementById('jsonp-estoque');
+    if (s) s.remove();
 
     if (json.status === 'ok' && json.estoque) {
-      // Mescla: Sheets tem prioridade sobre localStorage
       Object.keys(json.estoque).forEach(k => {
         if (INSUMOS.find(i => i.id === k)) {
           estoque[k] = parseFloat(json.estoque[k]) || 0;
@@ -1685,18 +1698,22 @@ async function carregarEstoqueRemoto() {
       });
       salvarLocal();
       renderEstoque();
-      const ts = json.atualizado_em ? ' · atualizado em ' + json.atualizado_em : '';
-      setSyncStatus('✔ Estoque sincronizado' + ts, 'ok');
+      const ts = json.atualizado_em ? ' · ' + json.atualizado_em : '';
+      setSyncStatus('✔ Sincronizado' + ts, 'ok');
     } else {
-      // Sheets ainda não tem dados — usa localStorage como fallback
       setSyncStatus('⚠ Nuvem sem dados — usando estoque local', '');
     }
-  } catch(e) {
+  };
+
+  const script = document.createElement('script');
+  script.id = 'jsonp-estoque';
+  script.src = APPS_SCRIPT_URL + '?action=get_estoque&callback=_cbEstoque&t=' + Date.now();
+  script.onerror = function() {
+    clearTimeout(window._jsonpEstoqueTimer);
     setSyncStatus('⚠ Sem conexão — usando estoque local', '');
-    console.warn('carregarEstoqueRemoto:', e);
-  } finally {
     if (btn) btn.disabled = false;
-  }
+  };
+  document.head.appendChild(script);
 }
 
 function syncManual() {
