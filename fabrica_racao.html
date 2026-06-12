@@ -1665,30 +1665,19 @@ function setSyncStatus(msg, tipo) {
   el.className = 'sync-status' + (tipo ? ' ' + tipo : '');
 }
 
-function carregarEstoqueRemoto() {
+async function carregarEstoqueRemoto() {
   setSyncStatus('⏳ Carregando estoque da nuvem...', 'carregando');
   const btn = document.getElementById('btn-sync');
   if (btn) btn.disabled = true;
 
-  // Remove callback anterior se existir
-  const old = document.getElementById('jsonp-estoque');
-  if (old) old.remove();
-  if (window._jsonpEstoqueTimer) clearTimeout(window._jsonpEstoqueTimer);
-
-  // Timeout de 8 segundos
-  window._jsonpEstoqueTimer = setTimeout(() => {
-    setSyncStatus('⚠ Sem conexão — usando estoque local', '');
-    if (btn) btn.disabled = false;
-    const s = document.getElementById('jsonp-estoque');
-    if (s) s.remove();
-  }, 8000);
-
-  // Callback global que o Apps Script vai chamar
-  window.cbEstoque = function(json) {
-    clearTimeout(window._jsonpEstoqueTimer);
-    if (btn) btn.disabled = false;
-    const s = document.getElementById('jsonp-estoque');
-    if (s) s.remove();
+  try {
+    const url = APPS_SCRIPT_URL + '?action=get_estoque';
+    const resp = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow'
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
 
     if (json.status === 'ok' && json.estoque) {
       Object.keys(json.estoque).forEach(k => {
@@ -1703,17 +1692,12 @@ function carregarEstoqueRemoto() {
     } else {
       setSyncStatus('⚠ Nuvem sem dados — usando estoque local', '');
     }
-  };
-
-  const script = document.createElement('script');
-  script.id = 'jsonp-estoque';
-  script.src = APPS_SCRIPT_URL + '?action=get_estoque&callback=cbEstoque&t=' + Date.now();
-  script.onerror = function() {
-    clearTimeout(window._jsonpEstoqueTimer);
+  } catch(e) {
     setSyncStatus('⚠ Sem conexão — usando estoque local', '');
+    console.warn('carregarEstoqueRemoto erro:', e);
+  } finally {
     if (btn) btn.disabled = false;
-  };
-  document.head.appendChild(script);
+  }
 }
 
 function syncManual() {
