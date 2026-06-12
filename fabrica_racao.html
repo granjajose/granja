@@ -1684,7 +1684,7 @@ function carregarEstoqueRemoto() {
   }, 8000);
 
   // Callback global que o Apps Script vai chamar
-  window._cbEstoque = function(json) {
+  window.cbEstoque = function(json) {
     clearTimeout(window._jsonpEstoqueTimer);
     if (btn) btn.disabled = false;
     const s = document.getElementById('jsonp-estoque');
@@ -1707,7 +1707,7 @@ function carregarEstoqueRemoto() {
 
   const script = document.createElement('script');
   script.id = 'jsonp-estoque';
-  script.src = APPS_SCRIPT_URL + '?action=get_estoque&callback=_cbEstoque&t=' + Date.now();
+  script.src = APPS_SCRIPT_URL + '?action=get_estoque&callback=cbEstoque&t=' + Date.now();
   script.onerror = function() {
     clearTimeout(window._jsonpEstoqueTimer);
     setSyncStatus('⚠ Sem conexão — usando estoque local', '');
