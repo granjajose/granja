@@ -1665,33 +1665,42 @@ function setSyncStatus(msg, tipo) {
   el.className = 'sync-status' + (tipo ? ' ' + tipo : '');
 }
 
+const CSV_ESTOQUE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVptQ2pEHq1TWOJMB73Sxm4d-7dxBBEXp9zVoS6MTkA-_4NMVS0Acta12BBSz8_rbW19hgKTQcHPKG/pub?gid=1627183651&single=true&output=csv';
+
 async function carregarEstoqueRemoto() {
   setSyncStatus('⏳ Carregando estoque da nuvem...', 'carregando');
   const btn = document.getElementById('btn-sync');
   if (btn) btn.disabled = true;
 
   try {
-    const url = APPS_SCRIPT_URL + '?action=get_estoque';
-    const resp = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow'
-    });
+    const resp = await fetch(CSV_ESTOQUE_URL + '&t=' + Date.now());
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
+    const text = await resp.text();
 
-    if (json.status === 'ok' && json.estoque) {
-      Object.keys(json.estoque).forEach(k => {
-        if (INSUMOS.find(i => i.id === k)) {
-          estoque[k] = parseFloat(json.estoque[k]) || 0;
-        }
-      });
-      salvarLocal();
-      renderEstoque();
-      const ts = json.atualizado_em ? ' · ' + json.atualizado_em : '';
-      setSyncStatus('✔ Sincronizado' + ts, 'ok');
-    } else {
-      setSyncStatus('⚠ Nuvem sem dados — usando estoque local', '');
+    // Parsear CSV: linha 1 = cabeçalho, linha 2 = valores
+    const linhas = text.trim().split('\n');
+    if (linhas.length < 2) throw new Error('CSV vazio');
+
+    const cab = linhas[0].split(',').map(c => c.trim().replace(/"/g,''));
+    const vals = linhas[1].split(',').map(v => v.trim().replace(/"/g,''));
+
+    // cab[0]=Timestamp, cab[1]=Atualizado em, cab[2..n]=ids dos insumos
+    let atualizados = 0;
+    for (let i = 2; i < cab.length; i++) {
+      const id = cab[i];
+      if (id && INSUMOS.find(ins => ins.id === id)) {
+        estoque[id] = parseFloat(vals[i]) || 0;
+        atualizados++;
+      }
     }
+
+    if (atualizados === 0) throw new Error('Nenhum insumo reconhecido');
+
+    salvarLocal();
+    renderEstoque();
+    const ts = vals[1] ? ' · ' + vals[1] : '';
+    setSyncStatus('✔ Sincronizado' + ts, 'ok');
+
   } catch(e) {
     setSyncStatus('⚠ Sem conexão — usando estoque local', '');
     console.warn('carregarEstoqueRemoto erro:', e);
