@@ -1626,7 +1626,7 @@ function sincronizarSheets(registro) {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origem: 'fabrica', ...registro })
+      body: JSON.stringify(registro)
     });
   } catch(e) {
     console.warn('Sync sheets falhou:', e);
@@ -1664,7 +1664,7 @@ function setSyncStatus(msg, tipo) {
   el.className = 'sync-status' + (tipo ? ' ' + tipo : '');
 }
 
-const CSV_ESTOQUE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVptQ2pEHq1TWOJMB73Sxm4d-7dxBBEXp9zVoS6MTkA-_4NMVS0Acta12BBSz8_rbW19hgKTQcHPKG/pub?gid=1627183651&single=true&output=csv';
+const CSV_ESTOQUE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS1PR86cZXNntdTDo5kKteaZNIZcJ64bHQaCNpfPg7nXdNsm8dgbXIb761GO4g40lgIJnMQkQOQkdgG/pub?gid=73404922&single=true&output=csv';
 
 async function carregarEstoqueRemoto() {
   setSyncStatus('⏳ Carregando estoque da nuvem...', 'carregando');
