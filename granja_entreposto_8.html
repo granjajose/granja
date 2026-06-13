@@ -344,6 +344,40 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   .totais-banner { grid-template-columns: repeat(2, 1fr); }
   .tot-card:last-child { grid-column: 1 / -1; }
 }
+
+/* ===== BARRA DE SYNC ===== */
+.sync-bar-entreposto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin-top: 6px;
+  gap: 10px;
+}
+.sync-status-bar {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  flex: 1;
+}
+.sync-status-bar.ok { color: #a8e6c8; }
+.sync-status-bar.erro { color: #ffb3b3; }
+.sync-status-bar.carregando { color: #ffe0a0; }
+.btn-sync-entreposto {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+}
+.btn-sync-entreposto:disabled { opacity: 0.5; }
+
 </style>
 </head>
 <body>
@@ -360,6 +394,12 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <div class="header-right" id="clockDisplay"></div>
+    
+    <!-- BARRA DE SINCRONIZAÇÃO -->
+    <div class="sync-bar-entreposto">
+      <div class="sync-status-bar" id="sync-status-entreposto">⏳ Aguardando sincronização...</div>
+      <button class="btn-sync-entreposto" id="btn-sync-entreposto" onclick="sincronizarLeituraEntreposto()">☁ Sincronizar</button>
+    </div>
     <button onclick="abrirLogin()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;" title="Administrador">🔒</button>
   </div>
 </div>
@@ -682,7 +722,7 @@ let aguaPos = true;
 let aguaPin = true;
 let viewAtual = 'painel';
 const SENHA_ADMIN = '753';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxm4xbg2KSPopTMBpQQz1cz89E3XETLIhWLAIXW-PKKTAqhGRjZVcbI_k-rGTx5FtxF1A/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyyLdSfDJ9mQnFRDimxMNG96Bua9GsykJl73PtpHmsShufGla92GV8cKz9mbmDyLMhpTg/exec';
 let adminLogado = false;
 let idParaExcluir = null;
 
@@ -1605,9 +1645,98 @@ function buildGraficos() {
   }
 }
 
+
+// ============================================================
+// SINCRONIZAÇÃO COM GOOGLE SHEETS — LEITURA
+// ============================================================
+const CSV_ENTREPOSTO_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPDrYF9XbJphX9iHp3kjKDEUvqApV4rmkJUV5UOOC0ZKU5Q-DANbu75Jnn70BPAMYkWw3-_zdNdByG/pub?gid=0&single=true&output=csv';
+
+function setSyncStatusEntreposto(msg, tipo) {
+  const el = document.getElementById('sync-status-entreposto');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'sync-status-bar ' + (tipo || '');
+}
+
+async function sincronizarLeituraEntreposto() {
+  setSyncStatusEntreposto('⏳ Sincronizando registros...', 'carregando');
+  const btn = document.getElementById('btn-sync-entreposto');
+  if (btn) btn.disabled = true;
+  try {
+    const resp = await fetch(CSV_ENTREPOSTO_URL + '&t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    const linhas = text.trim().split('\n');
+    if (linhas.length < 2) throw new Error('Sem dados');
+
+    const cab = linhas[0].split(',').map(c => c.trim().replace(/"/g,''));
+    // Índices das colunas
+    const iId = cab.indexOf('ID');
+    const iData = cab.indexOf('Data');
+    const iHora = cab.indexOf('Hora');
+    const iGalpao = cab.indexOf('Galpão');
+    const iTipo = cab.indexOf('Tipo');
+    const iTurno = cab.indexOf('Turno');
+    const iBonsCx = cab.indexOf('Caixas Bons');
+    const iBonsBd = cab.indexOf('Bandejas Bons');
+    const iBonsTotal = cab.indexOf('Total Ovos Bons');
+    const iPerdBd = cab.indexOf('Bandejas Perdas');
+    const iPerdUn = cab.indexOf('Unidades Perdas');
+    const iPerdTotal = cab.indexOf('Total Perdas');
+    const iMortes = cab.indexOf('Mortes');
+    const iRacaoSacas = cab.indexOf('Sacas Ração');
+    const iRacaoKg = cab.indexOf('KG Ração');
+    const iAgua = cab.indexOf('Água OK');
+    const iObs = cab.indexOf('Observação');
+
+    const regsRemoto = linhas.slice(1).map(linha => {
+      const cols = linha.split(',').map(c => c.trim().replace(/"/g,''));
+      return {
+        id: parseInt(cols[iId]) || Date.now(),
+        data: cols[iData] || '',
+        hora: cols[iHora] || '',
+        galpaoNome: cols[iGalpao] || '',
+        galpao: (galpoes.find(g => g.nome === cols[iGalpao]) || {}).id || cols[iGalpao],
+        tipo: cols[iTipo] || 'postura',
+        turno: cols[iTurno] || 'manha',
+        bons_cx: parseInt(cols[iBonsCx])||0,
+        bons_bd: parseInt(cols[iBonsBd])||0,
+        bons_total: parseInt(cols[iBonsTotal])||0,
+        perd_bd: parseInt(cols[iPerdBd])||0,
+        perd_un: parseInt(cols[iPerdUn])||0,
+        perd_total: parseInt(cols[iPerdTotal])||0,
+        mortes: parseInt(cols[iMortes])||0,
+        racao_sacas: parseInt(cols[iRacaoSacas])||0,
+        racao_kg: parseInt(cols[iRacaoKg])||0,
+        agua_ok: cols[iAgua] === 'Sim',
+        obs: cols[iObs] || ''
+      };
+    }).filter(r => r.data);
+
+    // Mescla: mantém registros locais + adiciona os do Sheets que não existem localmente
+    const idsLocais = new Set(registros.map(r => r.id));
+    const novos = regsRemoto.filter(r => !idsLocais.has(r.id));
+    if (novos.length > 0) {
+      registros = [...novos, ...registros];
+      saveRegs();
+    }
+
+    setSyncStatusEntreposto('✔ Sincronizado · ' + regsRemoto.length + ' registros', 'ok');
+    buildPainel();
+    if (viewAtual === 'historico') buildHistorico();
+  } catch(e) {
+    setSyncStatusEntreposto('⚠ Sem conexão — dados locais', 'erro');
+    console.warn('Sync entreposto erro:', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // ── INIT
 buildSidebar();
 buildPainel();
+// Sincronizar ao abrir
+setTimeout(sincronizarLeituraEntreposto, 1000);
 </script>
 </body>
 </html>
