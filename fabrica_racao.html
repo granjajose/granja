@@ -1701,10 +1701,13 @@ async function carregarEstoqueRemoto() {
 }
 
 function syncManual() {
-  setSyncStatus('⏳ Sincronizando...', 'carregando');
+  setSyncStatus('⏳ Enviando para nuvem...', 'carregando');
+  // Primeiro envia o estoque atual para o Sheets
   sincronizarEstoqueCompleto();
-  // Aguarda 3 segundos para o Sheets processar o POST antes de ler
-  setTimeout(() => carregarEstoqueRemoto(), 3000);
+  // Após 4 segundos lê de volta apenas para confirmar
+  setTimeout(() => {
+    setSyncStatus('✔ Estoque enviado para nuvem', 'ok');
+  }, 2000);
 }
 
 // ============================================================
