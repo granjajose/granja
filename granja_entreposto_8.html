@@ -444,6 +444,22 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
         </div>
       </div>
 
+      <!-- CAMPO DATA RETROATIVA — visível só para admin -->
+      <div id="campo-data-admin" style="display:none;margin-bottom:20px;">
+        <div class="fs-title">📅 Data do Registro (Admin)</div>
+        <div class="fields-card">
+          <div class="field-row" style="gap:16px;">
+            <div class="field-icon fi-amber">📅</div>
+            <div class="field-info">
+              <div class="field-label">Data retroativa</div>
+              <div class="field-hint">Altere apenas para registros de datas anteriores</div>
+            </div>
+            <input type="date" id="data-admin-input"
+              style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:16px;font-family:'DM Mono',monospace;color:var(--text);background:var(--surface2);cursor:pointer;">
+          </div>
+        </div>
+      </div>
+
       <!-- PINTEIRO - campos específicos -->
       <div id="form-pinteiro" style="display:none;">
         <div class="pinteiro-banner">
@@ -1032,9 +1048,20 @@ function enviarParaSheets(reg) {
 function salvar() {
   const g = getG(gAtual);
   const now = new Date();
+
+  // Data: usa campo admin se preenchido, senão data atual
+  let dataReg = now.toLocaleDateString('pt-BR');
+  if (adminLogado) {
+    const campoData = document.getElementById('data-admin-input');
+    if (campoData && campoData.value) {
+      const [ano, mes, dia] = campoData.value.split('-');
+      dataReg = `${dia}/${mes}/${ano}`;
+    }
+  }
+
   const reg = {
     id: Date.now(),
-    data: now.toLocaleDateString('pt-BR'),
+    data: dataReg,
     hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
     galpao: gAtual,
     galpaoNome: g.nome,
@@ -1134,6 +1161,14 @@ function confirmarLogin() {
   const senha = document.getElementById('senhaInput').value;
   if(senha === SENHA_ADMIN) {
     adminLogado = true;
+    // Mostrar campo de data retroativa e preencher com hoje
+    const campoData = document.getElementById('campo-data-admin');
+    const inputData = document.getElementById('data-admin-input');
+    if (campoData) campoData.style.display = 'block';
+    if (inputData) {
+      const hoje = new Date();
+      inputData.value = hoje.toISOString().split('T')[0];
+    }
     fecharLogin();
     showView('admin');
   } else {
@@ -1144,6 +1179,9 @@ function confirmarLogin() {
 }
 function sairAdmin() {
   adminLogado = false;
+  // Esconder campo de data retroativa
+  const campoData = document.getElementById('campo-data-admin');
+  if (campoData) campoData.style.display = 'none';
   showView('painel');
 }
 function buildAdmin() {
