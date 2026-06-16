@@ -854,6 +854,18 @@
   <div class="modal" style="max-width:500px">
     <div class="modal-title">🔐 Painel Admin</div>
 
+    <!-- PRODUTIVIDADE DIÁRIA -->
+    <div class="section-label">📊 Produtividade Diária</div>
+    <div id="admin-produtividade" style="margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;" id="prod-filtros">
+      <button onclick="renderProdutividade(1,this)" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;" id="pfbtn1">Hoje</button>
+      <button onclick="renderProdutividade(7,this)" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;" id="pfbtn7">7 dias</button>
+      <button onclick="renderProdutividade(30,this)" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;" id="pfbtn30">30 dias</button>
+      <button onclick="renderProdutividade(0,this)" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;" id="pfbtnTudo">Tudo</button>
+    </div>
+
+    <div class="sep"></div>
+
     <div class="section-label">Editar Fórmulas</div>
     <div class="form-group">
       <select class="form-input" id="admin-racao-sel" onchange="carregarFormAdmin()">
@@ -1459,7 +1471,111 @@ function abrirAdmin() {
   });
   document.getElementById('admin-formula-edit').style.display = 'none';
   renderMinimoAdmin();
+  renderProdutividade(1, document.getElementById('pfbtn1'));
   abrirModal('modal-admin');
+}
+
+function renderProdutividade(dias, btn) {
+  // Atualizar botões de filtro
+  ['pfbtn1','pfbtn7','pfbtn30','pfbtnTudo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.background = 'var(--bg3)';
+    el.style.color = 'var(--text2)';
+    el.style.border = '1px solid var(--border)';
+  });
+  if (btn) {
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#000';
+    btn.style.border = 'none';
+  }
+
+  // Filtrar histórico por período
+  const regsProducao = historico.filter(r => r.racao);
+  let regsFiltrados = regsProducao;
+
+  if (dias > 0) {
+    const limite = new Date();
+    limite.setDate(limite.getDate() - (dias - 1));
+    limite.setHours(0, 0, 0, 0);
+    regsFiltrados = regsProducao.filter(r => {
+      const [d, m, a] = r.data.split('/');
+      const dt = new Date(parseInt(a), parseInt(m) - 1, parseInt(d));
+      return dt >= limite;
+    });
+  }
+
+  const el = document.getElementById('admin-produtividade');
+  if (!el) return;
+
+  if (regsFiltrados.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text2);font-size:13px;">Nenhuma produção registrada no período.</div>`;
+    return;
+  }
+
+  // Agrupar por data
+  const porData = {};
+  regsFiltrados.forEach(r => {
+    if (!porData[r.data]) porData[r.data] = {};
+    if (!porData[r.data][r.racao]) porData[r.data][r.racao] = 0;
+    porData[r.data][r.racao]++;
+  });
+
+  // Total geral por tipo de ração
+  const totaisTipo = {};
+  regsFiltrados.forEach(r => {
+    totaisTipo[r.racao] = (totaisTipo[r.racao] || 0) + 1;
+  });
+
+  // Calcular total de kg produzidos
+  const totalBatidas = regsFiltrados.length;
+  const totalKg = totalBatidas * 500;
+
+  // Montar HTML
+  let html = '';
+
+  // Resumo geral
+  html += `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;">`;
+  html += `<div style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Resumo do período</div>`;
+  html += `<div style="display:flex;gap:16px;flex-wrap:wrap;">`;
+  html += `<div><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--accent);">${totalBatidas}</div><div style="font-size:11px;color:var(--text2);">batidas totais</div></div>`;
+  html += `<div><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--green);">${totalKg.toLocaleString('pt-BR')} kg</div><div style="font-size:11px;color:var(--text2);">ração produzida</div></div>`;
+  html += `</div>`;
+
+  // Por tipo de ração
+  html += `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">`;
+  Object.entries(totaisTipo).sort((a,b) => b[1]-a[1]).forEach(([tipo, qtd]) => {
+    html += `<span style="background:rgba(245,166,35,0.15);color:var(--accent);border:1px solid rgba(245,166,35,0.3);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;">${tipo}: ${qtd}x</span>`;
+  });
+  html += `</div></div>`;
+
+  // Tabela por dia
+  const datas = Object.keys(porData).sort((a,b) => {
+    const [da,ma,aa] = a.split('/'); const [db,mb,ab] = b.split('/');
+    return new Date(ab,mb-1,db) - new Date(aa,ma-1,da);
+  });
+
+  html += `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;">`;
+  html += `<div style="padding:10px 14px;font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Batidas por dia</div>`;
+
+  datas.forEach((data, idx) => {
+    const regsData = porData[data];
+    const totalDia = Object.values(regsData).reduce((s,v) => s+v, 0);
+    const bg = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)';
+    html += `<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:${bg};">`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">`;
+    html += `<div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);">${data}</div>`;
+    html += `<div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--accent);">${totalDia} batida${totalDia>1?'s':''} · ${totalDia*500} kg</div>`;
+    html += `</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+    Object.entries(regsData).sort((a,b) => b[1]-a[1]).forEach(([tipo, qtd]) => {
+      html += `<span style="background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--text2);">${tipo}: <strong style="color:var(--text)">${qtd}x</strong></span>`;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  el.innerHTML = html;
 }
 
 function carregarFormAdmin() {
@@ -1728,4 +1844,3 @@ carregarEstoqueRemoto();
 </script>
 </body>
 </html>
-
