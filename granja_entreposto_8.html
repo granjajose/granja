@@ -1299,6 +1299,9 @@ function atualizarAcoes() {
           ${g.tipo==='pinteiro'
             ? `<button onclick="abrirTransferencia()" style="background:var(--blue-light);border:1px solid var(--blue);color:var(--blue);border-radius:var(--rsm);padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🔄 Transferir para Galpão</button>`
             : ''}
+          ${g.vazio
+            ? `<button onclick="reativarGalpao('${g.id}')" style="background:var(--green-light);border:1px solid var(--green);color:var(--green);border-radius:var(--rsm);padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Reativar Galpão</button>`
+            : ''}
           <button onclick="confirmarZerarLote('${g.id}')" style="background:var(--red-light);border:1px solid var(--red);color:var(--red);border-radius:var(--rsm);padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑 Zerar Lote</button>
         </div>
       </div>`;
@@ -1307,6 +1310,21 @@ function atualizarAcoes() {
   el.innerHTML = html;
 }
 
+
+function reativarGalpao(gid) {
+  const g = getG(gid);
+  if (!g) return;
+  const aves = prompt(`Reativar ${g.nome}.\n\nInforme o número de aves do novo lote:`, g.aves_iniciais || 3120);
+  if (aves === null) return;
+  const n = parseInt(aves);
+  if (isNaN(n) || n < 1) { alert('Número de aves inválido.'); return; }
+  g.vazio = false;
+  g.aves_iniciais = n;
+  saveGalpoes();
+  buildAdmin();
+  buildSidebar();
+  showToast(`✓ ${g.nome} reativado — ${n} aves`);
+}
 
 function filtroAdmin(f, btn) {
   document.querySelectorAll('#adminFilters .hf-btn').forEach(b=>b.classList.remove('active'));
