@@ -1731,6 +1731,8 @@ function salvarLocal() {
   localStorage.setItem('gsj_historico', JSON.stringify(historico));
   localStorage.setItem('gsj_formulas', JSON.stringify(formulas));
   localStorage.setItem('gsj_minimos', JSON.stringify(minimos));
+  // Salva timestamp da última atualização local
+  localStorage.setItem('gsj_estoque_ts', new Date().toISOString());
 }
 
 // ============================================================
@@ -1762,7 +1764,8 @@ function sincronizarEstoqueCompleto() {
         tipo: 'snapshot_estoque',
         data: new Date().toLocaleDateString('pt-BR'),
         hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
-        estoque: estoque
+        estoque: estoque,
+        timestamp: new Date().toISOString()
       })
     });
   } catch(e) {
@@ -1792,29 +1795,40 @@ async function carregarEstoqueRemoto() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const text = await resp.text();
 
-    // Parsear CSV: linha 1 = cabeçalho, linha 2 = valores
     const linhas = text.trim().split('\n');
     if (linhas.length < 2) throw new Error('CSV vazio');
 
     const cab = linhas[0].split(',').map(c => c.trim().replace(/"/g,''));
     const vals = linhas[1].split(',').map(v => v.trim().replace(/"/g,''));
 
-    // cab[0]=Timestamp, cab[1]=Atualizado em, cab[2..n]=ids dos insumos
-    let atualizados = 0;
-    for (let i = 2; i < cab.length; i++) {
-      const id = cab[i];
-      if (id && INSUMOS.find(ins => ins.id === id)) {
-        estoque[id] = parseFloat(vals[i]) || 0;
-        atualizados++;
+    // Timestamp do Sheets (col 0) vs timestamp local
+    const tsSheets = vals[0] ? new Date(vals[0]).getTime() : 0;
+    const tsLocal = localStorage.getItem('gsj_estoque_ts')
+      ? new Date(localStorage.getItem('gsj_estoque_ts')).getTime()
+      : 0;
+
+    // Usa o mais recente
+    if (tsSheets > tsLocal) {
+      // Sheets é mais recente — atualiza local
+      let atualizados = 0;
+      for (let i = 2; i < cab.length; i++) {
+        const id = cab[i];
+        if (id && INSUMOS.find(ins => ins.id === id)) {
+          estoque[id] = parseFloat(vals[i]) || 0;
+          atualizados++;
+        }
       }
+      if (atualizados === 0) throw new Error('Nenhum insumo reconhecido');
+      salvarLocal();
+      renderEstoque();
+      const ts = vals[1] ? ' · ' + vals[1] : '';
+      setSyncStatus('✔ Atualizado do Sheets' + ts, 'ok');
+    } else {
+      // Local é mais recente — envia para o Sheets
+      sincronizarEstoqueCompleto();
+      const tsStr = tsLocal ? ' · ' + new Date(tsLocal).toLocaleString('pt-BR') : '';
+      setSyncStatus('✔ Estoque local mais recente — enviado ao Sheets' + tsStr, 'ok');
     }
-
-    if (atualizados === 0) throw new Error('Nenhum insumo reconhecido');
-
-    salvarLocal();
-    renderEstoque();
-    const ts = vals[1] ? ' · ' + vals[1] : '';
-    setSyncStatus('✔ Sincronizado' + ts, 'ok');
 
   } catch(e) {
     setSyncStatus('⚠ Sem conexão — usando estoque local', '');
@@ -1825,13 +1839,9 @@ async function carregarEstoqueRemoto() {
 }
 
 function syncManual() {
-  setSyncStatus('⏳ Enviando para nuvem...', 'carregando');
-  // Primeiro envia o estoque atual para o Sheets
+  setSyncStatus('⏳ Sincronizando...', 'carregando');
   sincronizarEstoqueCompleto();
-  // Após 4 segundos lê de volta apenas para confirmar
-  setTimeout(() => {
-    setSyncStatus('✔ Estoque enviado para nuvem', 'ok');
-  }, 2000);
+  setTimeout(() => carregarEstoqueRemoto(), 3000);
 }
 
 // ============================================================
