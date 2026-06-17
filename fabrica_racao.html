@@ -930,6 +930,44 @@ const INSUMOS = [
 ];
 
 // ============================================================
+// FORMATAR QUANTIDADE — gera o texto exibido a partir do ing.kg
+// (substitui o antigo campo "display" fixo, que não acompanhava
+// edições de fórmula feitas no Admin)
+// ============================================================
+function formatarQuantidade(ing) {
+  const insumo = INSUMOS.find(x => x.id === ing.id);
+  if (!insumo) return ing.kg + ' kg';
+
+  const kg = ing.kg;
+  const fmtNum = (v) => {
+    // Usa vírgula decimal (padrão BR), sem casas extras quando é inteiro
+    const arred = Math.round(v * 100) / 100;
+    return arred % 1 === 0 ? String(arred) : arred.toFixed(2).replace('.', ',').replace(/0$/, '').replace(/,$/, '');
+  };
+
+  // Unidades "de peso pequeno", onde peso_unidade = 1 (gramas, ml):
+  // mostra a quantidade direto na unidade do insumo, sem conversão.
+  if (insumo.peso_unidade === 1) {
+    if (insumo.unidade === 'gramas') return fmtNum(kg) + ' g';
+    if (insumo.unidade === 'ml') return fmtNum(kg) + ' ml';
+    return fmtNum(kg) + ' ' + insumo.unidade;
+  }
+
+  // Unidades em sacos/sacas/fardos/pacotes: decompõe em
+  // "N unidade + R kg" (ou só "N unidade" se exato, ou só "R kg" se < 1 unidade)
+  const unidades = Math.floor(kg / insumo.peso_unidade);
+  const resto = Math.round((kg - unidades * insumo.peso_unidade) * 100) / 100;
+
+  if (unidades === 0) {
+    return fmtNum(kg) + ' kg';
+  }
+  if (resto === 0) {
+    return unidades + ' ' + insumo.unidade + ' (' + fmtNum(kg) + ' kg)';
+  }
+  return unidades + ' ' + insumo.unidade + ' + ' + fmtNum(resto) + ' kg (' + fmtNum(kg) + ' kg)';
+}
+
+// ============================================================
 // FÓRMULAS (quantidade em KG por lote de 500kg)
 // ============================================================
 // Para premix_postura: usa premix_m10 ou premix_m12 conforme seleção
@@ -1096,7 +1134,7 @@ function renderFormula(key) {
   if (r.premix_variavel) {
     ingredientes = ingredientes.map(i => {
       if (i.id === 'premix_m10' && premixSelecionado === 'M1.2') {
-        return { ...i, id: 'premix_m12', display: '2 kg (M1.2)' };
+        return { ...i, id: 'premix_m12' };
       }
       return i;
     });
@@ -1118,7 +1156,7 @@ function renderFormula(key) {
         ${insumo ? insumo.nome : ing.id}
         <div class="${stockClass}" style="font-size:11px">${stockIcon} ${saldo_unid.toFixed(2)} ${unidade}</div>
       </td>
-      <td class="qty">${ing.display}</td>
+      <td class="qty">${formatarQuantidade(ing)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1178,7 +1216,7 @@ function abrirConfirmacao() {
 
   let ingredientes = r.ingredientes.map(i => ({...i}));
   if (r.premix_variavel && premixSelecionado === 'M1.2') {
-    ingredientes = ingredientes.map(i => i.id === 'premix_m10' ? {...i, id: 'premix_m12', display: '2 kg (M1.2)'} : i);
+    ingredientes = ingredientes.map(i => i.id === 'premix_m10' ? {...i, id: 'premix_m12'} : i);
   }
 
   document.getElementById('confirm-titulo').textContent = r.icon + ' ' + r.nome;
@@ -1190,7 +1228,7 @@ function abrirConfirmacao() {
     const ok = saldo_kg >= ing.kg;
     return `<div class="confirm-row">
       <span>${insumo ? insumo.nome : ing.id}</span>
-      <span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ing.display}</span>
+      <span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${formatarQuantidade(ing)}</span>
     </div>`;
   }).join('');
 
