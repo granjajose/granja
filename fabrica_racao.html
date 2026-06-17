@@ -1226,6 +1226,7 @@ function confirmarProducao() {
 
   salvarLocal();
   sincronizarSheets(registro);
+  sincronizarEstoqueCompleto();
 
   fecharModal('modal-confirmar');
   racaoSelecionada = null;
@@ -1430,6 +1431,7 @@ function registrarEntrada() {
   historico.unshift(registro);
   salvarLocal();
   sincronizarSheets(registro);
+  sincronizarEstoqueCompleto();
 
   fecharModal('modal-abastecer');
   renderEstoque();
