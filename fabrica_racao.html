@@ -1606,6 +1606,13 @@ function salvarFormAdmin() {
     if (!isNaN(val)) ing.kg = val;
   });
   salvarLocal();
+
+  // Atualiza a tela de Produção imediatamente, mesmo se a ração editada já estiver selecionada
+  if (racaoSelecionada === key) {
+    renderFormula(racaoSelecionada);
+    renderAlertas(racaoSelecionada);
+  }
+
   showToast('Fórmula salva com sucesso');
 }
 
