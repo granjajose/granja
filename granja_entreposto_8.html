@@ -1576,12 +1576,15 @@ function setPeriodoGrafico(valor, btn) {
   const box = document.getElementById('intervaloDatasBox');
   if (valor === 'intervalo') {
     box.classList.add('show');
-    // Pré-preenche com hoje, se vazio, pra já mostrar algo ao abrir
+    // Pré-preenche com hoje (horário LOCAL, não UTC) se vazio, pra já mostrar algo ao abrir
     const iIn = document.getElementById('dataInicioGrafico');
     const iFim = document.getElementById('dataFimGrafico');
-    const hojeISO = new Date().toISOString().slice(0,10);
-    if (!iIn.value) iIn.value = hojeISO;
-    if (!iFim.value) iFim.value = hojeISO;
+    const hoje = new Date();
+    const hojeLocalISO = hoje.getFullYear() + '-' +
+      String(hoje.getMonth()+1).padStart(2,'0') + '-' +
+      String(hoje.getDate()).padStart(2,'0');
+    if (!iIn.value) iIn.value = hojeLocalISO;
+    if (!iFim.value) iFim.value = hojeLocalISO;
   } else {
     box.classList.remove('show');
   }
@@ -1601,22 +1604,63 @@ function getRegsNoPeriodo(dias) {
 }
 
 // Filtra registros entre duas datas (inclusive), recebendo strings no formato YYYY-MM-DD (vindas do <input type="date">)
+// Blindado: qualquer entrada vazia, malformada ou parcial retorna array vazio em vez de lançar erro.
 function getRegsNoIntervalo(dataInicioISO, dataFimISO) {
-  if (!dataInicioISO || !dataFimISO) return [];
-  const [aIni, mIni, dIni] = dataInicioISO.split('-');
-  const [aFim, mFim, dFim] = dataFimISO.split('-');
-  const inicio = new Date(parseInt(aIni), parseInt(mIni)-1, parseInt(dIni));
-  inicio.setHours(0,0,0,0);
-  const fim = new Date(parseInt(aFim), parseInt(mFim)-1, parseInt(dFim));
-  fim.setHours(23,59,59,999);
-  return registros.filter(r => {
-    const [d,m,a] = r.data.split('/');
-    const dt = new Date(parseInt(a), parseInt(m)-1, parseInt(d));
-    return dt >= inicio && dt <= fim;
-  });
+  try {
+    if (!dataInicioISO || !dataFimISO) return [];
+    const partesIni = dataInicioISO.split('-');
+    const partesFim = dataFimISO.split('-');
+    if (partesIni.length !== 3 || partesFim.length !== 3) return [];
+
+    const [aIni, mIni, dIni] = partesIni.map(Number);
+    const [aFim, mFim, dFim] = partesFim.map(Number);
+    if ([aIni,mIni,dIni,aFim,mFim,dFim].some(n => isNaN(n))) return [];
+
+    const inicio = new Date(aIni, mIni-1, dIni, 0, 0, 0, 0);
+    const fim = new Date(aFim, mFim-1, dFim, 23, 59, 59, 999);
+    if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) return [];
+
+    return registros.filter(r => {
+      if (!r.data || typeof r.data !== 'string') return false;
+      const partesR = r.data.split('/');
+      if (partesR.length !== 3) return false;
+      const [d,m,a] = partesR.map(Number);
+      if ([d,m,a].some(n => isNaN(n))) return false;
+      const dt = new Date(a, m-1, d);
+      return dt >= inicio && dt <= fim;
+    });
+  } catch(e) {
+    console.error('Erro em getRegsNoIntervalo:', e);
+    return [];
+  }
 }
 
 function buildGraficos() {
+  try {
+    buildGraficosInterno();
+  } catch(e) {
+    console.error('Erro ao construir gráficos:', e);
+    const container = document.getElementById('graficosContainer');
+    if (container) {
+      container.insertAdjacentHTML('beforebegin',
+        `<div style="background:#FDECEC;border:1px solid #D62839;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#8E0E1C;" id="erroGraficoBox">⚠ Erro ao gerar gráficos: ${e.message}. Toque em outro filtro (ex: Hoje) para tentar de novo.</div>`
+      );
+    }
+  }
+}
+
+function buildGraficosInterno() {
+  const erroAnterior = document.getElementById('erroGraficoBox');
+  if (erroAnterior) erroAnterior.remove();
+
+  // Proteção: se os dados globais ainda não carregaram (ex: durante sincronização),
+  // tenta de novo em breve em vez de deixar os gráficos quebrados/em branco.
+  if (typeof galpoes === 'undefined' || !Array.isArray(galpoes) ||
+      typeof registros === 'undefined' || !Array.isArray(registros)) {
+    setTimeout(buildGraficos, 200);
+    return;
+  }
+
   let regs;
   if (periodoGrafico === 'intervalo') {
     const dataInicioISO = document.getElementById('dataInicioGrafico')?.value;
