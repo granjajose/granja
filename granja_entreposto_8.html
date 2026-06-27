@@ -379,6 +379,93 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 }
 .btn-sync-entreposto:disabled { opacity: 0.5; }
 
+/* ===== ABA LATERAL ADMIN (acesso garantido em qualquer nível de zoom) ===== */
+.admin-edge-tab {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 150;
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: 12px 0 0 12px;
+  width: 30px;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.18);
+  -webkit-tap-highlight-color: transparent;
+}
+.admin-edge-tab:active { background: var(--purple); }
+.admin-edge-tab .aet-grip {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 28px;
+  border-left: 2px dotted rgba(255,255,255,0.55);
+}
+
+.admin-drawer-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 160;
+}
+.admin-drawer-bg.open { display: block; }
+.admin-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 240px;
+  max-width: 80vw;
+  background: var(--surface);
+  box-shadow: -4px 0 18px rgba(0,0,0,0.25);
+  z-index: 161;
+  transform: translateX(100%);
+  transition: transform 0.22s ease-out;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+}
+.admin-drawer-bg.open .admin-drawer { transform: translateX(0); }
+.admin-drawer .ad-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.admin-drawer .ad-sub { font-size: 12px; color: var(--text2); margin-bottom: 18px; }
+.admin-drawer .ad-btn {
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: var(--rsm);
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-drawer .ad-close {
+  margin-top: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: var(--rsm);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+
 </style>
 </head>
 <body>
@@ -402,6 +489,22 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <button class="btn-sync-entreposto" id="btn-sync-entreposto" onclick="sincronizarLeituraEntreposto()">☁ Sincronizar</button>
     </div>
     <button onclick="abrirLogin()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;" title="Administrador">🔒</button>
+  </div>
+</div>
+
+<!-- ABA LATERAL FIXA — acesso ao Admin garantido em qualquer nível de zoom -->
+<button class="admin-edge-tab" onclick="abrirDrawerAdmin()" title="Área do Administrador">
+  <span class="aet-grip"></span>
+  🔒
+</button>
+
+<!-- DRAWER ADMIN (puxado pela aba lateral) -->
+<div class="admin-drawer-bg" id="adminDrawerBg" onclick="if(event.target===this) fecharDrawerAdmin()">
+  <div class="admin-drawer">
+    <div class="ad-title">⚙️ Acesso rápido</div>
+    <div class="ad-sub">Disponível mesmo com zoom alto na tela</div>
+    <button class="ad-btn" onclick="fecharDrawerAdmin(); abrirLogin();">🔒 Área do Administrador</button>
+    <button class="ad-close" onclick="fecharDrawerAdmin()">Fechar</button>
   </div>
 </div>
 
@@ -1143,6 +1246,14 @@ function renderHist(regs) {
     if(r.obs) chips+=`<span class="chip cgr">📝 obs</span>`;
     return `<div class="hist-item"><div class="hi-top"><div class="hi-title">${icon} ${r.galpaoNome} — ${r.turno==='manha'?'Manhã':'Tarde'}</div><div class="hi-time">${r.data} ${r.hora}</div></div><div class="hi-chips">${chips}</div></div>`;
   }).join('');
+}
+
+// ── DRAWER ADMIN LATERAL (acesso garantido em qualquer zoom) ──────────────
+function abrirDrawerAdmin() {
+  document.getElementById('adminDrawerBg').classList.add('open');
+}
+function fecharDrawerAdmin() {
+  document.getElementById('adminDrawerBg').classList.remove('open');
 }
 
 function abrirLogin() {
