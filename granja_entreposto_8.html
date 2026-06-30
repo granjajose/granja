@@ -824,61 +824,6 @@ const GALPOES_DEFAULT = [
   { id:'E', nome:'Galpão E', tipo:'postura', aves_iniciais:3120, vazio:false },
   { id:'F', nome:'Galpão F', tipo:'postura', aves_iniciais:3120, vazio:false },
   { id:'P', nome:'Pinteiro', tipo:'pinteiro', aves_iniciais:3120, vazio:false },
-/**
- * ============================================================
- * APPS SCRIPT — Fábrica de Ração, Granja São José
- * ============================================================
- * NOVA LÓGICA (substitui a versão anterior baseada em snapshot)
- *
- * Por que mudou:
- * A versão antiga recebia "o estoque inteiro" de cada dispositivo
- * e sobrescrevia a aba inteira com isso, decidindo por timestamp
- * quem "ganhava". Se o celular sincronizasse depois do computador,
- * tudo que o computador tinha feito desde a última sync sumia sem
- * aviso. Era exatamente a causa do "estoque desregula sem erro".
- *
- * Como funciona agora:
- * - Cada AÇÃO no app (entrada, saída manual, edição direta, consumo
- *   de produção) chega aqui como um MOVIMENTO individual com um
- *   mov_id único e um delta (quanto mudou, positivo ou negativo).
- * - Cada movimento é gravado como uma linha na aba "Movimentos",
- *   e NUNCA é apagado nem sobrescrito.
- * - O saldo de cada insumo é sempre = soma de todos os deltas
- *   daquele insumo. Não existe "número fixo salvo" para o saldo;
- *   ele é sempre recalculado a partir do histórico completo.
- * - Se dois dispositivos mandarem o mesmo mov_id (reenvio por falha
- *   de rede, por exemplo), o script ignora o duplicado — cada
- *   movimento só conta uma vez, mesmo que seja enviado de novo.
- *
- * ABAS USADAS:
- * - "Movimentos": log de cada movimento individual (nunca apagar)
- * - "SaldosCache": opcional, só para você visualizar rápido o saldo
- *   atual sem precisar somar manualmente (o script atualiza sozinho)
- *
- * COMO INSTALAR:
- * 1. Na planilha "Fábrica de Ração — Granja São José", vá em
- *    Extensões > Apps Script
- * 2. Apague o conteúdo atual do arquivo Code.gs (ou o que estiver lá)
- * 3. Cole este arquivo inteiro
- * 4. Salve (ícone de disquete)
- * 5. Clique em "Implantar" > "Gerenciar implantações"
- * 6. Edite a implantação existente (ícone de lápis) e clique em
- *    "Implantar" de novo para publicar a nova versão do código
- *    SEM precisar gerar uma URL nova (a URL que já está no app
- *    HTML continua funcionando)
- * 7. Se for a primeira vez publicando como Web App, configure:
- *    "Executar como": Eu (sua conta)
- *    "Quem pode acessar": Qualquer pessoa
- * ============================================================
- */
-
-const NOME_ABA_MOVIMENTOS = 'Movimentos';
-const NOME_ABA_SALDOS = 'SaldosCache';
-
-const INSUMOS_IDS = [
-  'milho', 'soja', 'carne', 'trigo', 'calc_grosso', 'calc_fino',
-  'bicarb', 'sal', 'adsorvente', 'premix_ini', 'premix_fra',
-  'premix_m10', 'premix_m12', 'colina', 'vitamitract', 'poliforte', 'oleo'
 ];
 
 let galpoes = JSON.parse(localStorage.getItem('granja_galpoes') || 'null') || GALPOES_DEFAULT;
@@ -1263,12 +1208,6 @@ function salvarNome() {
   updateFormGalpao();
   showToast('Nome atualizado ✓');
 }
-// ============================================================
-// PONTO DE ENTRADA — POST (recebe movimentos novos do app)
-// ============================================================
-function doPost(e) {
-  try {
-    const body = JSON.parse(e.postData.contents);
 
 // HISTORICO
 function buildHistorico() {
@@ -1303,11 +1242,7 @@ function renderHist(regs) {
       if(r.mortes>0) chips+=`<span class="chip cr">💀 ${r.mortes} mortes</span>`;
       if(r.racao_sacas>0) chips+=`<span class="chip cb">🌾 ${r.racao_sacas} sacas (${r.racao_kg}kg)</span>`;
       if(!r.agua_ok) chips+=`<span class="chip cr">💧 Água!</span>`;
-    if (body.tipo === 'movimentos' && Array.isArray(body.movimentos)) {
-      const confirmados = registrarMovimentos(body.movimentos);
-      const saldos = calcularSaldos();
-      return respostaJson({ ok: true, confirmados: confirmados, saldos: saldos });
-}
+    }
     if(r.obs) chips+=`<span class="chip cgr">📝 obs</span>`;
     return `<div class="hist-item"><div class="hi-top"><div class="hi-title">${icon} ${r.galpaoNome} — ${r.turno==='manha'?'Manhã':'Tarde'}</div><div class="hi-time">${r.data} ${r.hora}</div></div><div class="hi-chips">${chips}</div></div>`;
   }).join('');
@@ -1320,7 +1255,6 @@ function abrirDrawerAdmin() {
 function fecharDrawerAdmin() {
   document.getElementById('adminDrawerBg').classList.remove('open');
 }
-    return respostaJson({ ok: false, erro: 'Tipo de requisição não reconhecido' });
 
 function abrirLogin() {
   if(adminLogado) { showView('admin'); return; }
@@ -1350,9 +1284,7 @@ function confirmarLogin() {
     document.getElementById('senhaErro').style.display = 'block';
     document.getElementById('senhaInput').value = '';
     document.getElementById('senhaInput').focus();
-  } catch (err) {
-    return respostaJson({ ok: false, erro: String(err) });
-}
+  }
 }
 function sairAdmin() {
   adminLogado = false;
@@ -1401,15 +1333,7 @@ function buildAdmin() {
       <div id="adminRegistros"></div>
     `;
     setTimeout(buildGraficos, 80);
-// ============================================================
-// PONTO DE ENTRADA — GET (devolve os saldos atuais, somados)
-// ============================================================
-function doGet(e) {
-  const tipo = e.parameter.tipo || '';
-  if (tipo === 'saldos') {
-    const saldos = calcularSaldos();
-    return respostaJson({ ok: true, saldos: saldos, atualizado_em: new Date().toISOString() });
-}
+  }
 
   // ── Atualiza só as partes dinâmicas ──────────────────────────────────────
   atualizarIndicadores();
@@ -1421,7 +1345,6 @@ function doGet(e) {
     galpoes.map(g=>`<button class="hf-btn" onclick="filtroAdmin('g:${g.id}',this)">${g.nome}</button>`).join('');
 
   renderAdmin(registros);
-  return respostaJson({ ok: false, erro: 'Use ?tipo=saldos' });
 }
 
 function atualizarIndicadores() {
@@ -1467,43 +1390,7 @@ function atualizarIndicadores() {
       <td style="padding:8px 10px;text-align:center;">${g.tipo==='pinteiro'?'—':ovosHoje.toLocaleString('pt-BR')}</td>
       <td style="padding:8px 10px;text-align:center;font-weight:700;color:${pctColor};">${g.tipo==='pinteiro'?'<span style="font-size:11px;color:var(--text3);">Em cria</span>':pct}</td>
     </tr>`;
-// ============================================================
-// REGISTRAR MOVIMENTOS NOVOS (ignora duplicados por mov_id)
-// ============================================================
-function registrarMovimentos(movimentos) {
-  const planilha = SpreadsheetApp.getActiveSpreadsheet();
-  let aba = planilha.getSheetByName(NOME_ABA_MOVIMENTOS);
-  if (!aba) {
-    aba = planilha.insertSheet(NOME_ABA_MOVIMENTOS);
-    aba.appendRow(['mov_id', 'recebido_em', 'data', 'hora', 'insumo_id', 'delta', 'tipo', 'obs']);
-  }
-
-  // Carrega os mov_id já existentes para não duplicar
-  const dados = aba.getDataRange().getValues();
-  const idsExistentes = new Set();
-  for (let i = 1; i < dados.length; i++) {
-    idsExistentes.add(String(dados[i][0]));
-  }
-
-  const confirmados = [];
-  const linhasNovas = [];
-
-  movimentos.forEach(mov => {
-    confirmados.push(mov.mov_id); // confirma de volta mesmo se já existia (idempotente)
-    if (idsExistentes.has(String(mov.mov_id))) return; // já registrado, ignora
-
-    linhasNovas.push([
-      mov.mov_id,
-      new Date().toISOString(),
-      mov.data || '',
-      mov.hora || '',
-      mov.insumo_id || '',
-      Number(mov.delta) || 0,
-      mov.tipo || '',
-      mov.obs || ''
-    ]);
-    idsExistentes.add(String(mov.mov_id));
-});
+  });
   html += `</tbody></table></div></div>`;
   el.innerHTML = html;
 }
@@ -1537,9 +1424,6 @@ function atualizarAcoes() {
   el.innerHTML = html;
 }
 
-  if (linhasNovas.length > 0) {
-    aba.getRange(aba.getLastRow() + 1, 1, linhasNovas.length, 8).setValues(linhasNovas);
-  }
 
 function reativarGalpao(gid) {
   const g = getG(gid);
@@ -1554,7 +1438,6 @@ function reativarGalpao(gid) {
   buildAdmin();
   buildSidebar();
   showToast(`✓ ${g.nome} reativado — ${n} aves`);
-  return confirmados;
 }
 
 function filtroAdmin(f, btn) {
@@ -1580,26 +1463,7 @@ function renderAdmin(regs) {
       if(r.perd_total>0) chips+=`<span class="chip cr">💔 ${r.perd_total} perdas</span>`;
       if(r.mortes>0) chips+=`<span class="chip cr">💀 ${r.mortes} mortes</span>`;
       if(r.racao_sacas>0) chips+=`<span class="chip cb">🌾 ${r.racao_sacas} sacas</span>`;
-// ============================================================
-// CALCULAR SALDOS — soma de todos os deltas, por insumo
-// ============================================================
-function calcularSaldos() {
-  const planilha = SpreadsheetApp.getActiveSpreadsheet();
-  const aba = planilha.getSheetByName(NOME_ABA_MOVIMENTOS);
-
-  const saldos = {};
-  INSUMOS_IDS.forEach(id => saldos[id] = 0);
-
-  if (aba) {
-    const dados = aba.getDataRange().getValues();
-    // Colunas: mov_id(0), recebido_em(1), data(2), hora(3), insumo_id(4), delta(5), tipo(6), obs(7)
-    for (let i = 1; i < dados.length; i++) {
-      const insumoId = dados[i][4];
-      const delta = Number(dados[i][5]) || 0;
-      if (saldos.hasOwnProperty(insumoId)) {
-        saldos[insumoId] += delta;
-      }
-}
+    }
     return `<div class="hist-item">
       <div class="hi-top">
         <div>
@@ -1633,7 +1497,7 @@ function abrirTransferencia() {
   if(postura.length === 0) {
     alert('Nenhum galpão em vazio sanitário disponível para receber o lote.\n\nZere o lote de um galpão de postura primeiro para liberar a transferência.');
     return;
-}
+  }
   const opts = postura.map(g => `<option value="${g.id}">${g.nome}</option>`).join('');
   const pin = getG('P');
   const pinVivas = getAvesVivas('P');
@@ -1669,12 +1533,7 @@ function confirmarTransferencia() {
     acao: `Transferido ${pinVivas} aves → ${dest.nome}`,
     aves_iniciais: pin.aves_iniciais,
     mortes: getMortesAcumuladas('P'),
-  // Nunca deixa saldo negativo aparecer por causa de algum delta
-  // estranho do histórico antigo importado
-  INSUMOS_IDS.forEach(id => {
-    if (saldos[id] < 0) saldos[id] = 0;
-    saldos[id] = Math.round(saldos[id] * 100) / 100;
-});
+  });
 
   // Configurar galpão destino
   dest.aves_iniciais = pinVivas;
@@ -1725,8 +1584,6 @@ function confirmarZerarLote(gid) {
   buildAdmin();
   buildSidebar();
   showToast(`✓ ${g.nome} zerado — em vazio sanitário`);
-  atualizarAbaCacheSaldos(saldos);
-  return saldos;
 }
 
 
@@ -1802,23 +1659,7 @@ function getRegsNoPeriodo(dias) {
     const [d,m,a] = r.data.split('/');
     const dt = new Date(parseInt(a), parseInt(m)-1, parseInt(d));
     return dt >= limite;
-// ============================================================
-// ABA AUXILIAR — só para você ver o saldo de forma legível
-// direto na planilha, sem precisar abrir o app. O app NUNCA lê
-// essa aba; ela é só um espelho visual, atualizado a cada cálculo.
-// ============================================================
-function atualizarAbaCacheSaldos(saldos) {
-  const planilha = SpreadsheetApp.getActiveSpreadsheet();
-  let aba = planilha.getSheetByName(NOME_ABA_SALDOS);
-  if (!aba) {
-    aba = planilha.insertSheet(NOME_ABA_SALDOS);
-  }
-  aba.clear();
-  aba.appendRow(['Insumo (id)', 'Saldo atual', 'Atualizado em']);
-  const agora = new Date().toLocaleString('pt-BR');
-  INSUMOS_IDS.forEach(id => {
-    aba.appendRow([id, saldos[id], agora]);
-});
+  });
 }
 
 // Filtra registros entre duas datas (inclusive), recebendo strings no formato YYYY-MM-DD (vindas do <input type="date">)
@@ -1932,25 +1773,7 @@ function buildGraficosInterno() {
         }
       }
     }
-// ============================================================
-// MIGRAÇÃO ÚNICA (opcional) — importar o saldo atual da aba antiga
-// "Fábrica de Ração" (a que já existe) como um movimento inicial,
-// para não perder a contagem física que você já tem hoje.
-// Rode esta função MANUALMENTE UMA VEZ SÓ pelo editor do Apps
-// Script (botão "Executar"), depois pode ignorar/apagar.
-// ============================================================
-function migrarSaldoInicialUnicaVez() {
-  const planilha = SpreadsheetApp.getActiveSpreadsheet();
-  const abaAntiga = planilha.getSheetByName('Página1') || planilha.getSheets()[0];
-  // ATENÇÃO: ajuste os valores abaixo manualmente com o saldo físico
-  // real contado na granja HOJE, antes de rodar esta função.
-  // Isso garante que o novo sistema comece do valor certo, em vez
-  // de somar deltas a partir de zero.
-  const saldoInicialReal = {
-    milho: 0, soja: 0, carne: 0, trigo: 0, calc_grosso: 0, calc_fino: 0,
-    bicarb: 0, sal: 0, adsorvente: 0, premix_ini: 0, premix_fra: 0,
-    premix_m10: 0, premix_m12: 0, colina: 0, vitamitract: 0, poliforte: 0, oleo: 0
-};
+  };
 
   // Destruir gráficos anteriores
   if(chartQuebrados) { chartQuebrados.destroy(); chartQuebrados = null; }
@@ -2020,15 +1843,6 @@ function migrarSaldoInicialUnicaVez() {
       const [di,mi] = d.split('/');
       return `${di}/${mi}`;
     });
-  const movimentosIniciais = Object.keys(saldoInicialReal).map(id => ({
-    mov_id: 'migracao-inicial-' + id,
-    insumo_id: id,
-    delta: saldoInicialReal[id],
-    tipo: 'migracao_inicial',
-    data: new Date().toLocaleDateString('pt-BR'),
-    hora: new Date().toLocaleTimeString('pt-BR'),
-    obs: 'Saldo físico contado na migração para o novo sistema'
-  }));
 
     chartEvolucao = new Chart(ctxE, {
       type: 'line',
@@ -2085,14 +1899,11 @@ function migrarSaldoInicialUnicaVez() {
       }
     });
   }
-  registrarMovimentos(movimentosIniciais);
-  Logger.log('Migração concluída. Saldos: ' + JSON.stringify(calcularSaldos()));
 }
 
 
 // ============================================================
 // SINCRONIZAÇÃO COM GOOGLE SHEETS — LEITURA
-// UTIL
 // ============================================================
 const CSV_ENTREPOSTO_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPDrYF9XbJphX9iHp3kjKDEUvqApV4rmkJUV5UOOC0ZKU5Q-DANbu75Jnn70BPAMYkWw3-_zdNdByG/pub?gid=1513832156&single=true&output=csv';
 
@@ -2101,9 +1912,6 @@ function setSyncStatusEntreposto(msg, tipo) {
   if (!el) return;
   el.textContent = msg;
   el.className = 'sync-status-bar ' + (tipo || '');
-function respostaJson(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 async function sincronizarLeituraEntreposto() {
