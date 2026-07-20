@@ -1055,10 +1055,15 @@ const FORMULAS_DEFAULT = {
 };
 
 // ============================================================
-// STATE
+// STATE — MODELO DELTA-BASED
 // ============================================================
+// estoqueBase      = último saldo conhecido do Google Sheets (fonte da verdade)
+// deltasPendentes  = ajustes locais ainda não confirmados no Sheets
+// estoque          = cache derivado: base + deltas (usado pelas telas)
 let formulas = JSON.parse(localStorage.getItem('gsj_formulas') || 'null') || JSON.parse(JSON.stringify(FORMULAS_DEFAULT));
-let estoque  = JSON.parse(localStorage.getItem('gsj_estoque') || '{}');
+let estoqueBase = JSON.parse(localStorage.getItem('gsj_estoque_base') || 'null');
+let deltasPendentes = JSON.parse(localStorage.getItem('gsj_deltas_pendentes') || '[]');
+let estoque  = {};
 let minimos  = JSON.parse(localStorage.getItem('gsj_minimos') || '{}');
 let historico = JSON.parse(localStorage.getItem('gsj_historico') || '[]');
 let sessao   = null; // 'gerente' | 'admin'
@@ -1067,11 +1072,51 @@ let premixSelecionado = 'M1.0';
 let pinBuffer = '';
 let pinAlvo = null;
 
-// Inicializar estoque zerado para insumos não cadastrados
+// Migração da versão antiga (last-write-wins): se ainda não existe base
+// delta, adota o estoque local antigo como base inicial. Nada se perde.
+if (estoqueBase === null) {
+  estoqueBase = JSON.parse(localStorage.getItem('gsj_estoque') || '{}');
+}
+
+// Inicializar base zerada para insumos não cadastrados
 INSUMOS.forEach(i => {
-  if (estoque[i.id] === undefined) estoque[i.id] = 0;
+  if (estoqueBase[i.id] === undefined) estoqueBase[i.id] = 0;
   if (minimos[i.id] === undefined) minimos[i.id] = i.minimo;
 });
+
+// ============================================================
+// MOTOR DE DELTAS
+// ============================================================
+function gerarUid() {
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+// Recalcula o cache exibido: base + soma dos deltas pendentes (nunca < 0)
+function recomputarEstoque() {
+  estoque = {};
+  INSUMOS.forEach(i => { estoque[i.id] = estoqueBase[i.id] || 0; });
+  deltasPendentes.forEach(d => {
+    estoque[d.insumo_id] = (estoque[d.insumo_id] || 0) + d.delta;
+  });
+  INSUMOS.forEach(i => {
+    estoque[i.id] = Math.max(0, Math.round(estoque[i.id] * 100) / 100);
+  });
+}
+
+// Registra um ajuste local como delta pendente (em unidades do insumo)
+function aplicarDelta(insumoId, delta) {
+  if (!delta) return;
+  deltasPendentes.push({
+    uid: gerarUid(),
+    insumo_id: insumoId,
+    delta: Math.round(delta * 100) / 100,
+    ts: new Date().toISOString(),
+    push_ts: null   // preenchido quando enviado ao Sheets
+  });
+  recomputarEstoque();
+}
+
+recomputarEstoque();
 
 // ============================================================
 // NAVEGAÇÃO
@@ -1242,12 +1287,14 @@ function confirmarProducao() {
     ingredientes = ingredientes.map(i => i.id === 'premix_m10' ? {...i, id: 'premix_m12'} : i);
   }
 
-  // Descontar estoque
+  // Descontar estoque — cada ingrediente vira um delta negativo
   ingredientes.forEach(ing => {
     const insumo = INSUMOS.find(x => x.id === ing.id);
     if (!insumo) return;
     const unidades_usadas = ing.kg / insumo.peso_unidade;
-    estoque[ing.id] = Math.max(0, (estoque[ing.id] || 0) - unidades_usadas);
+    // Limita ao saldo disponível para o exibido não ficar negativo
+    const desconto = Math.min(unidades_usadas, estoque[ing.id] || 0);
+    if (desconto > 0) aplicarDelta(ing.id, -desconto);
   });
 
   // Registrar histórico
@@ -1286,8 +1333,12 @@ function formatSaldo(val) {
 function ajustarEstoque(id, delta) {
   if (sessao !== 'gerente' && sessao !== 'admin') return;
   const insumo = INSUMOS.find(i => i.id === id);
-  const novoSaldo = Math.max(0, (estoque[id] || 0) + delta);
-  estoque[id] = novoSaldo;
+  // Não deixa o saldo exibido ficar negativo: limita o delta de saída
+  const efetivo = delta < 0 ? -Math.min(Math.abs(delta), estoque[id] || 0) : delta;
+  if (efetivo === 0) return;
+  delta = efetivo;
+  aplicarDelta(id, delta);
+  const novoSaldo = estoque[id];
 
   // Atualizar display sem re-renderizar tudo
   const saldoEl = document.getElementById('saldo-' + id);
@@ -1347,7 +1398,8 @@ function confirmarEdicaoSaldo() {
   }
   const insumo = INSUMOS.find(i => i.id === esInsumoId);
   const anterior = estoque[esInsumoId] || 0;
-  estoque[esInsumoId] = val;
+  // Edição direta vira um delta relativo ao saldo exibido no momento
+  aplicarDelta(esInsumoId, val - anterior);
 
   const registro = {
     id: Date.now(),
@@ -1454,7 +1506,7 @@ function registrarEntrada() {
   }
 
   const insumo = INSUMOS.find(i => i.id === id);
-  estoque[id] = (estoque[id] || 0) + qtd;
+  aplicarDelta(id, qtd);
 
   const registro = {
     id: Date.now(),
@@ -1774,11 +1826,13 @@ function showToast(msg, error = false) {
 // LOCAL STORAGE
 // ============================================================
 function salvarLocal() {
+  localStorage.setItem('gsj_estoque_base', JSON.stringify(estoqueBase));
+  localStorage.setItem('gsj_deltas_pendentes', JSON.stringify(deltasPendentes));
+  // Chave antiga mantida com o valor derivado, por compatibilidade/rollback
   localStorage.setItem('gsj_estoque', JSON.stringify(estoque));
   localStorage.setItem('gsj_historico', JSON.stringify(historico));
   localStorage.setItem('gsj_formulas', JSON.stringify(formulas));
   localStorage.setItem('gsj_minimos', JSON.stringify(minimos));
-  // Salva timestamp da última atualização local
   localStorage.setItem('gsj_estoque_ts', new Date().toISOString());
 }
 
@@ -1799,10 +1853,23 @@ function sincronizarSheets(registro) {
 }
 
 // ============================================================
-// SINCRONIZAÇÃO GOOGLE SHEETS — ENVIO DO ESTOQUE COMPLETO
+// SINCRONIZAÇÃO GOOGLE SHEETS — ENVIO DO ESTOQUE (BASE + DELTAS)
 // ============================================================
+// Envia o estoque mesclado (base do Sheets + deltas locais pendentes).
+// Diferente do modelo antigo (last-write-wins), o que vai para o Sheets
+// nunca é um snapshot "cego" do aparelho: é sempre a última verdade da
+// nuvem com os ajustes locais aplicados por cima.
 function sincronizarEstoqueCompleto() {
   try {
+    const agora = new Date().toISOString();
+    // Marca quais deltas estão incluídos neste envio
+    deltasPendentes.forEach(d => { d.push_ts = agora; });
+    localStorage.setItem('gsj_ultimo_push_ts', agora);
+    // Guarda os valores enviados: a confirmação de incorporação é feita
+    // comparando VALORES (o Timestamp da planilha usa o relógio do
+    // servidor, que pode divergir do relógio do aparelho)
+    localStorage.setItem('gsj_ultimo_push_snapshot', JSON.stringify(estoque));
+    salvarLocal();
     fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -1812,11 +1879,11 @@ function sincronizarEstoqueCompleto() {
         data: new Date().toLocaleDateString('pt-BR'),
         hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
         estoque: estoque,
-        timestamp: new Date().toISOString()
+        timestamp: agora
       })
     });
   } catch(e) {
-    console.warn('Snapshot estoque falhou:', e);
+    console.warn('Envio de estoque falhou:', e);
   }
 }
 
@@ -1832,6 +1899,39 @@ function setSyncStatus(msg, tipo) {
 
 const CSV_ESTOQUE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS1PR86cZXNntdTDo5kKteaZNIZcJ64bHQaCNpfPg7nXdNsm8dgbXIb761GO4g40lgIJnMQkQOQkdgG/pub?gid=73404922&single=true&output=csv';
 
+// Divide uma linha de CSV respeitando campos entre aspas
+// (o Sheets exporta decimais pt-BR como "1262,72" — um split(',')
+// simples desloca todas as colunas seguintes)
+function parseCsvLinha(linha) {
+  const out = [];
+  let atual = '', dentroAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"') {
+      if (dentroAspas && linha[i+1] === '"') { atual += '"'; i++; }
+      else dentroAspas = !dentroAspas;
+    } else if (c === ',' && !dentroAspas) {
+      out.push(atual); atual = '';
+    } else {
+      atual += c;
+    }
+  }
+  out.push(atual);
+  return out.map(v => v.trim());
+}
+
+// Converte número em formato pt-BR ("1.262,72" ou "1262,72") ou padrão
+function parseNumeroBR(v) {
+  if (v === undefined || v === null) return 0;
+  v = String(v).trim();
+  if (v === '') return 0;
+  if (v.indexOf(',') !== -1) {
+    v = v.replace(/\./g, '').replace(',', '.');
+  }
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
 async function carregarEstoqueRemoto() {
   setSyncStatus('⏳ Carregando estoque da nuvem...', 'carregando');
   const btn = document.getElementById('btn-sync');
@@ -1845,36 +1945,56 @@ async function carregarEstoqueRemoto() {
     const linhas = text.trim().split('\n');
     if (linhas.length < 2) throw new Error('CSV vazio');
 
-    const cab = linhas[0].split(',').map(c => c.trim().replace(/"/g,''));
-    const vals = linhas[1].split(',').map(v => v.trim().replace(/"/g,''));
+    const cab = parseCsvLinha(linhas[0]);
+    const vals = parseCsvLinha(linhas[1]);
 
-    // Timestamp do Sheets (col 0) vs timestamp local
-    const tsSheets = vals[0] ? new Date(vals[0]).getTime() : 0;
-    const tsLocal = localStorage.getItem('gsj_estoque_ts')
-      ? new Date(localStorage.getItem('gsj_estoque_ts')).getTime()
-      : 0;
-
-    // Usa o mais recente
-    if (tsSheets > tsLocal) {
-      // Sheets é mais recente — atualiza local
-      let atualizados = 0;
-      for (let i = 2; i < cab.length; i++) {
-        const id = cab[i];
-        if (id && INSUMOS.find(ins => ins.id === id)) {
-          estoque[id] = parseFloat(vals[i]) || 0;
-          atualizados++;
-        }
+    // 1) Lê o estoque remoto (fonte da verdade para a BASE)
+    const remoto = {};
+    let atualizados = 0;
+    for (let i = 2; i < cab.length; i++) {
+      const id = cab[i];
+      if (id && INSUMOS.find(ins => ins.id === id)) {
+        remoto[id] = parseNumeroBR(vals[i]);
+        atualizados++;
       }
-      if (atualizados === 0) throw new Error('Nenhum insumo reconhecido');
-      salvarLocal();
-      renderEstoque();
-      const ts = vals[1] ? ' · ' + vals[1] : '';
-      setSyncStatus('✔ Atualizado do Sheets' + ts, 'ok');
-    } else {
-      // Local é mais recente — envia para o Sheets
+    }
+    if (atualizados === 0) throw new Error('Nenhum insumo reconhecido');
+
+    const tsSheets = vals[0] ? new Date(vals[0]).getTime() : 0;
+
+    // 2) Reconciliação delta-based.
+    // Um delta enviado é considerado incorporado quando o valor remoto
+    // do insumo bate com o valor que enviamos (confirmação por VALOR —
+    // imune a diferenças de relógio entre aparelho e servidor).
+    // Fallback: se a planilha registrou qualquer gravação 10+ minutos
+    // após o envio e o valor ainda difere, outro aparelho alterou por
+    // cima; adotamos o remoto e descartamos para não duplicar (o
+    // histórico de movimentos permite auditar qualquer divergência).
+    const pushSnapshot = JSON.parse(localStorage.getItem('gsj_ultimo_push_snapshot') || 'null');
+    const FOLGA_MS = 10 * 60 * 1000;
+    deltasPendentes = deltasPendentes.filter(d => {
+      if (!d.push_ts) return true; // nunca enviado — mantém
+      const enviado = pushSnapshot ? pushSnapshot[d.insumo_id] : undefined;
+      const valorBate = (enviado !== undefined) &&
+        Math.abs((remoto[d.insumo_id] || 0) - enviado) < 0.005;
+      const remotoBemPosterior = tsSheets >= new Date(d.push_ts).getTime() + FOLGA_MS;
+      return !(valorBate || remotoBemPosterior); // incorporado — descarta
+    });
+
+    // 3) Adota o remoto como nova base e reaplica pendentes por cima
+    estoqueBase = remoto;
+    INSUMOS.forEach(i => { if (estoqueBase[i.id] === undefined) estoqueBase[i.id] = 0; });
+    recomputarEstoque();
+    salvarLocal();
+    renderEstoque();
+
+    // 4) Se sobraram pendentes, reenvia o estoque mesclado
+    if (deltasPendentes.length > 0) {
       sincronizarEstoqueCompleto();
-      const tsStr = tsLocal ? ' · ' + new Date(tsLocal).toLocaleString('pt-BR') : '';
-      setSyncStatus('✔ Estoque local mais recente — enviado ao Sheets' + tsStr, 'ok');
+      setSyncStatus('✔ Base atualizada do Sheets · ' + deltasPendentes.length + ' ajuste(s) local(is) reenviado(s)', 'ok');
+    } else {
+      const ts = vals[1] ? ' · ' + vals[1] : '';
+      setSyncStatus('✔ Sincronizado com o Sheets' + ts, 'ok');
     }
 
   } catch(e) {
