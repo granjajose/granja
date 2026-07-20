@@ -1860,6 +1860,10 @@ function sincronizarSheets(registro) {
 // nunca é um snapshot "cego" do aparelho: é sempre a última verdade da
 // nuvem com os ajustes locais aplicados por cima.
 function sincronizarEstoqueCompleto() {
+  // Aparelho sem ajustes pendentes não tem nada a enviar. Isso torna
+  // aparelhos "somente visualização" (ex.: notebook do gerente)
+  // incapazes de sobrescrever a planilha com dados desatualizados.
+  if (deltasPendentes.length === 0) return;
   try {
     const agora = new Date().toISOString();
     // Marca quais deltas estão incluídos neste envio
